@@ -1,0 +1,91 @@
+import React from 'react';
+import { Volume2, VolumeX, Download, Maximize, HelpCircle, Gamepad2 } from 'lucide-react';
+import { sound } from '../game/audio';
+
+interface HeaderBarProps {
+  isMuted: boolean;
+  onToggleSound: () => void;
+  onOpenControls: () => void;
+  onToggleFullscreen: () => void;
+}
+
+export const HeaderBar: React.FC<HeaderBarProps> = ({
+  isMuted,
+  onToggleSound,
+  onOpenControls,
+  onToggleFullscreen
+}) => {
+  const handleDownload = () => {
+    // Download the single self-contained HTML file
+    const link = document.createElement('a');
+    link.href = '/jiro-speed-adventure.html';
+    link.download = 'jiro-speed-adventure.html';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 flex items-center justify-between z-30 shrink-0 select-none">
+      {/* Brand Title */}
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-orange-500/20">
+          <Gamepad2 className="w-5 h-5 text-slate-950" />
+        </div>
+        <div>
+          <h1 className="text-base font-black tracking-wide text-white flex items-center gap-2">
+            JIRO: SPEED ADVENTURE
+            <span className="text-[10px] uppercase font-bold tracking-widest bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full border border-cyan-500/30">
+              HTML5 Canvas
+            </span>
+          </h1>
+          <p className="text-xs text-slate-400 hidden sm:block">Original 2D Fast-Paced Platformer</p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center gap-2">
+        {/* Download Standalone Single-File Button */}
+        <button
+          onClick={handleDownload}
+          title="Save as standalone single-file jiro-speed-adventure.html"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all active:scale-95"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">Save</span> Single HTML
+        </button>
+
+        {/* Audio Toggle */}
+        <button
+          onClick={onToggleSound}
+          title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+          className={`p-2 rounded-lg border transition-all text-xs font-medium flex items-center gap-1.5 cursor-pointer ${
+            isMuted
+              ? 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700'
+              : 'bg-slate-800 text-cyan-400 border-cyan-500/40 hover:bg-slate-700'
+          }`}
+        >
+          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        </button>
+
+        {/* Controls Help */}
+        <button
+          onClick={onOpenControls}
+          title="View Keyboard Controls"
+          className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all hover:bg-slate-700 cursor-pointer"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+
+        {/* Fullscreen */}
+        <button
+          onClick={onToggleFullscreen}
+          title="Toggle Fullscreen"
+          className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all hover:bg-slate-700 cursor-pointer"
+        >
+          <Maximize className="w-4 h-4" />
+        </button>
+      </div>
+    </header>
+  );
+};

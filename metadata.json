@@ -1,0 +1,6 @@
+{
+  "name": "Jiro: Speed Adventure",
+  "description": "An original fast-paced 2D platformer featuring Jiro with smooth physics, procedural canvas graphics, audio synthesis, and rich platforming levels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
