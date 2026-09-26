@@ -94,11 +94,13 @@ export class GameEngine {
 
   public updateDpr() {
     if (typeof window !== 'undefined') {
-      // Calculate effective rendering scale:
-      // Minimum 2.0x base internal resolution for crisp high-resolution rendering,
-      // scaling up with high-DPI displays (Retina/4K) up to a sensible performance cap of 3.0x.
       const deviceDpr = window.devicePixelRatio || 1;
-      const targetScale = Math.min(Math.max(2.0, deviceDpr), 3.0);
+      const rect = this.canvas.getBoundingClientRect();
+      const displayW = rect.width > 0 ? rect.width : GAME_W;
+      // Calculate how many physical screen pixels correspond to each logical game unit (GAME_W = 960)
+      const physicalScale = (displayW / GAME_W) * deviceDpr;
+      // Clamp between 1.5x (budget mobile) and 3.5x (Retina / 4K monitors)
+      const targetScale = Math.min(3.5, Math.max(1.5, Math.round(physicalScale * 10) / 10));
       const targetW = Math.round(GAME_W * targetScale);
       const targetH = Math.round(GAME_H * targetScale);
 
@@ -961,6 +963,10 @@ export class GameEngine {
         this.showNotification('⛰️ ENTERING: MOUNTAIN', 'High alpine cliffs, rocky ledges & snowy peaks ahead!', '#e2e8f0', 3.5);
       } else if (this.currentBiome.primary === 'forest') {
         this.showNotification('🌲 ENTERING: FOREST', 'Dense ancient trees, jungle canopy & mossy vines!', '#22c55e', 3.5);
+      } else if (this.currentBiome.primary === 'temple') {
+        this.showNotification('🏛️ ENTERING: ANCIENT TEMPLE RUINS', 'Sunlit stone pillars, ivy-covered arches & forgotten ruins!', '#f59e0b', 3.5);
+      } else if (this.currentBiome.primary === 'volcano') {
+        this.showNotification('🌋 ENTERING: VOLCANIC AREA', 'Dark volcanic crags, glowing magma fissures & smoky embers!', '#ef4444', 3.5);
       } else if (this.currentBiome.primary === 'meadow' && prev !== 'meadow') {
         this.showNotification('🌿 ENTERING: MEADOW', 'Vibrant rolling hills & lush open skies!', '#4ade80', 3.5);
       }
@@ -996,8 +1002,8 @@ export class GameEngine {
         this.boss.width = 96;
         this.boss.height = 92;
 
-        // Find ground/platform surface behind player for natural, grounded entrance
-        const spawnX = p.x - 280;
+        // Find ground/platform surface behind player for natural, grounded entrance inside camera view
+        const spawnX = p.x - 240;
         let groundY = 470;
         for (const plat of this.platforms) {
           if (spawnX + this.boss.width * 0.7 >= plat.x && spawnX + this.boss.width * 0.3 <= plat.x + plat.width) {
@@ -1008,7 +1014,7 @@ export class GameEngine {
         }
         this.boss.x = spawnX;
         this.boss.y = groundY - this.boss.height;
-        this.boss.vx = 0;
+        this.boss.vx = p.vx > 0 ? p.vx : 5.8;
         this.boss.vy = 0;
         this.boss.hazardTimer = 1.6;
         this.boss.roarTimer = 0;
@@ -1026,9 +1032,23 @@ export class GameEngine {
       const b = this.boss;
       if (b.state === 'warning') {
         b.warningTimer -= dt;
+        // Keep GorgonX smoothly pacing behind player inside camera view during warning
+        const targetX = p.x - 240;
+        b.vx = p.vx > 0 ? p.vx : 5.8;
+        b.x += (targetX - b.x) * 0.12;
+        let warningGroundY = 470;
+        for (const plat of this.platforms) {
+          if (b.x + b.width * 0.7 >= plat.x && b.x + b.width * 0.3 <= plat.x + plat.width) {
+            if (plat.y >= 200 && plat.y <= 480) {
+              if (plat.y < warningGroundY) warningGroundY = plat.y;
+            }
+          }
+        }
+        b.y = warningGroundY - b.height;
+
         if (b.warningTimer <= 0) {
           b.state = 'chasing';
-          b.x = p.x - 260;
+          b.x = p.x - 240;
           let chaseGroundY = 470;
           for (const plat of this.platforms) {
             if (b.x + b.width * 0.7 >= plat.x && b.x + b.width * 0.3 <= plat.x + plat.width) {
@@ -1058,12 +1078,17 @@ export class GameEngine {
         // Dynamic chase speed matching difficulty tier
         const baseSpeed = 6.2 + Math.min(3.4, p.distance / 320);
         b.vx = baseSpeed;
-        if (p.x - b.x > 380) {
-          b.vx += 1.8;
+        if (p.x - b.x > 250) {
+          b.vx = Math.max(b.vx + 2.0, p.vx + 1.2);
         } else if (p.x - b.x < 130) {
           b.vx = Math.max(3.2, b.vx - 1.2);
         }
         b.x += b.vx;
+
+        // Prevent boss from ever falling behind camera view or clipping left screen edge
+        const minBossX = this.camera.x + 36;
+        if (b.x < minBossX) b.x = minBossX;
+        if (p.x - b.x > 265) b.x = p.x - 265;
 
         // Boss ground landing & gravity (firmly anchored to ground/platform level)
         b.vy += 0.52;
@@ -1482,6 +1507,33 @@ export class GameEngine {
     this.bossHazards = [];
   }
 
+  public triggerBossEncounter() {
+    if (!this.boss.active && this.state === 'playing') {
+      const p = this.player;
+      this.boss.active = true;
+      this.boss.state = 'warning';
+      this.boss.warningTimer = 2.6;
+      this.boss.health = 3;
+      this.boss.maxHealth = 3;
+      this.boss.chaseDistance = 0;
+      this.boss.escapeGoal = 200;
+      this.boss.name = 'GorgonX';
+      this.boss.width = 96;
+      this.boss.height = 92;
+      this.boss.x = p.x - 240;
+      this.boss.y = 470 - this.boss.height;
+      this.boss.vx = p.vx > 0 ? p.vx : 5.8;
+      this.boss.vy = 0;
+      this.boss.hazardTimer = 1.6;
+      this.boss.roarTimer = 0;
+      this.boss.hazardTheme = 'mixed';
+      this.bossHazards = [];
+      this.camera.targetZoom = 0.83;
+      sound.playBossWarning();
+      this.showNotification('⚠️ GORGONX APPROACHING!', 'GorgonX is on the hunt! Outrun the beast & avoid hazards!', '#ef4444', 3.2);
+    }
+  }
+
   public render() {
     this.updateDpr();
     this.ctx.save();
@@ -1502,7 +1554,7 @@ export class GameEngine {
     drawCoins(this.ctx, this.camera.x, this.coins);
     drawPowerUps(this.ctx, this.camera.x, this.powerups, this.platforms);
     drawEnemies(this.ctx, this.camera.x, this.enemies, this.platforms);
-    drawBoss(this.ctx, this.camera.x, this.boss);
+    drawBoss(this.ctx, this.camera.x, this.boss, this.camera.y);
     drawJiro(this.ctx, this.camera.x, this.player, this.platforms);
     renderParticles(this.ctx, this.camera.x, this.particles);
 

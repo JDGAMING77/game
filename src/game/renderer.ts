@@ -68,11 +68,15 @@ export function drawBackground(
   const distantCave = curB === 'cave' ? (1 - distT) : (nxtB === 'cave' ? distT : 0);
   const distantMountain = curB === 'mountain' ? (1 - distT) : (nxtB === 'mountain' ? distT : 0);
   const distantForest = curB === 'forest' ? (1 - distT) : (nxtB === 'forest' ? distT : 0);
+  const distantTemple = curB === 'temple' ? (1 - distT) : (nxtB === 'temple' ? distT : 0);
+  const distantVolcano = curB === 'volcano' ? (1 - distT) : (nxtB === 'volcano' ? distT : 0);
 
   const midCoastal = curB === 'coastal' ? (1 - midT) : (nxtB === 'coastal' ? midT : 0);
   const midCave = curB === 'cave' ? (1 - midT) : (nxtB === 'cave' ? midT : 0);
   const midMountain = curB === 'mountain' ? (1 - midT) : (nxtB === 'mountain' ? midT : 0);
   const midForest = curB === 'forest' ? (1 - midT) : (nxtB === 'forest' ? midT : 0);
+  const midTemple = curB === 'temple' ? (1 - midT) : (nxtB === 'temple' ? midT : 0);
+  const midVolcano = curB === 'volcano' ? (1 - midT) : (nxtB === 'volcano' ? midT : 0);
 
   // Helper color interpolator for smooth biome transitions
   const hexToRgb = (hex: string): [number, number, number] => {
@@ -98,6 +102,8 @@ export function drawBackground(
   // Cave: deep subterranean indigo/slate cavern ambient with mineral glow
   // Mountain: crisp alpine azure to pale icy mountain mist
   // Forest: deep dense emerald canopy to filtered sunlit understory haze
+  // Temple: warm radiant golden sunlit sky over ancient ruins
+  // Volcano: smoldering dark volcanic sky with crimson magma glow
   const skyPalettes: Record<BiomeType, { top: [number, number, number]; mid: [number, number, number]; low: [number, number, number]; bottom: [number, number, number] }> = {
     meadow: {
       top: [29, 128, 219],
@@ -128,6 +134,18 @@ export function drawBackground(
       mid: [65, 175, 165],
       low: [145, 215, 175],
       bottom: [210, 242, 195]
+    },
+    temple: {
+      top: [38, 98, 168],
+      mid: [96, 162, 214],
+      low: [224, 185, 126],
+      bottom: [254, 235, 182]
+    },
+    volcano: {
+      top: [25, 14, 20],
+      mid: [62, 24, 26],
+      low: [136, 42, 26],
+      bottom: [218, 76, 26]
     }
   };
 
@@ -143,19 +161,19 @@ export function drawBackground(
   ctx.fillStyle = skyGrad;
   ctx.fillRect(-200, -150, GAME_W + 400, GAME_H + 350);
 
-  // 2. Celestial Body (Sun for Meadow/Coastal, Bioluminescent Cave Crystals for Cave)
-  if (midCave < 0.9) {
-    // Normal Sun with soft coronas (Fades out smoothly when entering subterranean cave)
+  // 2. Celestial Body (Sun for Meadow/Coastal/Temple, Volcanic Eclipse for Volcano, Cave Ceilings for Cave)
+  if (midCave < 0.9 && midVolcano < 0.85) {
+    // Normal Sun with soft coronas (Fades out smoothly when entering subterranean cave or thick volcanic smoke)
     ctx.save();
-    ctx.globalAlpha = Math.max(0, 1 - midCave * 1.15);
+    ctx.globalAlpha = Math.max(0, (1 - midCave * 1.15) * (1 - midVolcano * 0.9));
     const sunX = 140 - camX * 0.02;
     const sunY = 85;
 
     // Ambient sun haze
     const sunGlow = ctx.createRadialGradient(sunX, sunY, 15, sunX, sunY, 120);
-    sunGlow.addColorStop(0, curB === 'coastal' ? 'rgba(255, 252, 220, 0.95)' : 'rgba(255, 250, 215, 0.95)');
-    sunGlow.addColorStop(0.25, curB === 'coastal' ? 'rgba(254, 240, 138, 0.6)' : 'rgba(255, 235, 140, 0.55)');
-    sunGlow.addColorStop(0.6, 'rgba(255, 220, 110, 0.18)');
+    sunGlow.addColorStop(0, curB === 'coastal' ? 'rgba(255, 252, 220, 0.95)' : curB === 'temple' ? 'rgba(254, 240, 138, 0.95)' : 'rgba(255, 250, 215, 0.95)');
+    sunGlow.addColorStop(0.25, curB === 'coastal' ? 'rgba(254, 240, 138, 0.6)' : curB === 'temple' ? 'rgba(251, 191, 36, 0.65)' : 'rgba(255, 235, 140, 0.55)');
+    sunGlow.addColorStop(0.6, curB === 'temple' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255, 220, 110, 0.18)');
     sunGlow.addColorStop(1, 'rgba(255, 210, 100, 0)');
     ctx.fillStyle = sunGlow;
     ctx.beginPath();
@@ -165,11 +183,65 @@ export function drawBackground(
     // Crisp sun core with bright rim
     const coreGrad = ctx.createRadialGradient(sunX - 4, sunY - 4, 2, sunX, sunY, 26);
     coreGrad.addColorStop(0, '#ffffff');
-    coreGrad.addColorStop(0.5, curB === 'coastal' ? '#fef9c3' : '#fff7b8');
-    coreGrad.addColorStop(1, curB === 'coastal' ? '#facc15' : '#ffde59');
+    coreGrad.addColorStop(0.5, curB === 'coastal' ? '#fef9c3' : curB === 'temple' ? '#fef08a' : '#fff7b8');
+    coreGrad.addColorStop(1, curB === 'coastal' ? '#facc15' : curB === 'temple' ? '#f59e0b' : '#ffde59');
     ctx.fillStyle = coreGrad;
     ctx.beginPath();
     ctx.arc(sunX, sunY, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // TEMPLE SPECIFIC WARM SUNBEAMS & GOD RAYS
+  if (midTemple > 0.05 && midCave < 0.9) {
+    ctx.save();
+    ctx.globalAlpha = midTemple * (1 - midCave) * 0.35;
+    const tSunX = 140 - camX * 0.02;
+    // Radiant golden volumetric sun rays slanting down across the sky
+    for (let r = 0; r < 5; r++) {
+      const rx = tSunX - 120 + r * 85;
+      const rayGrad = ctx.createLinearGradient(tSunX, 85, rx + 160, GAME_H);
+      rayGrad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
+      rayGrad.addColorStop(0.5, 'rgba(253, 224, 71, 0.18)');
+      rayGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+      ctx.fillStyle = rayGrad;
+      ctx.beginPath();
+      ctx.moveTo(tSunX, 85);
+      ctx.lineTo(rx, GAME_H + 40);
+      ctx.lineTo(rx + 50, GAME_H + 40);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // VOLCANO SPECIFIC SMOLDERING ASH SUN & CORONA
+  if (midVolcano > 0.05 && midCave < 0.9) {
+    ctx.save();
+    ctx.globalAlpha = midVolcano * (1 - midCave);
+    const volSunX = 200 - camX * 0.018;
+    const volSunY = 85;
+
+    // Glowing magma haze / fiery corona
+    const volHaze = ctx.createRadialGradient(volSunX, volSunY, 15, volSunX, volSunY, 140);
+    volHaze.addColorStop(0, 'rgba(239, 68, 68, 0.8)');
+    volHaze.addColorStop(0.35, 'rgba(249, 115, 22, 0.45)');
+    volHaze.addColorStop(0.7, 'rgba(185, 28, 28, 0.18)');
+    volHaze.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = volHaze;
+    ctx.beginPath();
+    ctx.arc(volSunX, volSunY, 140, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Smoldering sun core (deep incandescent crimson and burning yellow rim)
+    const volCore = ctx.createRadialGradient(volSunX - 3, volSunY - 3, 2, volSunX, volSunY, 26);
+    volCore.addColorStop(0, '#fef08a');
+    volCore.addColorStop(0.3, '#f97316');
+    volCore.addColorStop(0.75, '#dc2626');
+    volCore.addColorStop(1, '#7f1d1d');
+    ctx.fillStyle = volCore;
+    ctx.beginPath();
+    ctx.arc(volSunX, volSunY, 26, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -623,8 +695,245 @@ export function drawBackground(
     ctx.restore();
   }
 
-  // 3d. Distant Meadow Mountains (Default when not Coastal, Cave, Mountain, or Forest)
-  const meadowIntensity = Math.max(0, 1 - distantCoastal - distantCave - distantMountain - distantForest);
+  // 3d. Distant Ancient Temple Ruins Silhouettes, Layered Ziggurats & Grand Colonnades
+  if (distantTemple > 0.02 && distantCave < 0.92) {
+    ctx.save();
+    ctx.globalAlpha = distantTemple * (1 - distantCave);
+
+    // Warm golden atmospheric horizon glow
+    const templeHaze = ctx.createLinearGradient(0, 130, 0, GAME_H);
+    templeHaze.addColorStop(0, 'rgba(254, 240, 138, 0.16)');
+    templeHaze.addColorStop(0.5, 'rgba(251, 191, 36, 0.08)');
+    templeHaze.addColorStop(1, 'rgba(217, 119, 6, 0)');
+    ctx.fillStyle = templeHaze;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    // LAYER 1: Far Mountain Foothills & Monumental Stepped Ziggurat Silhouettes (Parallax 0.032)
+    const farTempleGrad = ctx.createLinearGradient(0, 180, 0, GAME_H + 120);
+    farTempleGrad.addColorStop(0, 'rgba(180, 130, 85, 0.85)');
+    farTempleGrad.addColorStop(0.5, 'rgba(210, 165, 115, 0.92)');
+    farTempleGrad.addColorStop(1, 'rgba(240, 205, 160, 0.98)');
+    ctx.fillStyle = farTempleGrad;
+
+    ctx.beginPath();
+    ctx.moveTo(-160, GAME_H + 160);
+    for (let x = -160; x <= GAME_W + 240; x += 40) {
+      const worldX = x + camX * 0.032;
+      const baseRidge = 250 + Math.sin(worldX * 0.003) * 30 + Math.cos(worldX * 0.007) * 18;
+      ctx.lineTo(x, baseRidge);
+    }
+    ctx.lineTo(GAME_W + 240, GAME_H + 160);
+    ctx.closePath();
+    ctx.fill();
+
+    // Colossal Stepped Ziggurat Temple silhouettes along the far ridge
+    for (let zx = -100; zx <= GAME_W + 200; zx += 320) {
+      const worldX = zx + camX * 0.032;
+      const zY = 230 + Math.sin(worldX * 0.003) * 20;
+      // 3 Tiered Stepped Sanctuary
+      ctx.fillRect(zx - 50, zY - 14, 100, 16);
+      ctx.fillRect(zx - 36, zY - 26, 72, 14);
+      ctx.fillRect(zx - 22, zY - 36, 44, 12);
+      // Top temple shrine / portal
+      ctx.fillRect(zx - 12, zY - 46, 24, 12);
+      ctx.beginPath();
+      ctx.moveTo(zx - 15, zY - 46);
+      ctx.lineTo(zx, zY - 54);
+      ctx.lineTo(zx + 15, zY - 46);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // LAYER 2: Mid-Distant Weathered Colonnades, Arches & Broken Architraves (Parallax 0.065)
+    const midTempleGrad = ctx.createLinearGradient(0, 220, 0, GAME_H + 120);
+    midTempleGrad.addColorStop(0, '#a8784e');
+    midTempleGrad.addColorStop(0.45, '#c29368');
+    midTempleGrad.addColorStop(1, '#dbb58f');
+    ctx.fillStyle = midTempleGrad;
+
+    ctx.beginPath();
+    ctx.moveTo(-160, GAME_H + 160);
+    for (let x = -160; x <= GAME_W + 240; x += 35) {
+      const worldX = x + camX * 0.065;
+      const hillBase = 280 + Math.sin(worldX * 0.004 + 0.8) * 36;
+      ctx.lineTo(x, hillBase);
+    }
+    ctx.lineTo(GAME_W + 240, GAME_H + 160);
+    ctx.closePath();
+    ctx.fill();
+
+    // Distant Grand Ruins: standing columns, shattered pillars, and ruined stone archways
+    for (let rx = -120; rx <= GAME_W + 200; rx += 140) {
+      const worldX = rx + camX * 0.065;
+      const slot = Math.floor(worldX / 140);
+      const seed = Math.sin(slot * 43.7 + 19.3) * 43758.5453;
+      const rand = seed - Math.floor(seed);
+      const rY = 280 + Math.sin(worldX * 0.004 + 0.8) * 36;
+
+      if (rand < 0.4) {
+        // Colonnade of 3 fluted pillars with broken architrave
+        ctx.fillRect(rx - 28, rY - 44, 9, 44);
+        ctx.fillRect(rx - 4, rY - 44, 9, 44);
+        ctx.fillRect(rx + 20, rY - 32, 9, 32); // Broken pillar
+        // Lintel architrave slab on top of the first two
+        ctx.fillRect(rx - 32, rY - 50, 44, 8);
+      } else if (rand < 0.75) {
+        // Ruined Monumental Archway
+        ctx.fillRect(rx - 22, rY - 52, 10, 52);
+        ctx.fillRect(rx + 12, rY - 52, 10, 52);
+        // Arch lintel & pediment
+        ctx.fillRect(rx - 25, rY - 60, 50, 9);
+        ctx.beginPath();
+        ctx.moveTo(rx - 26, rY - 60);
+        ctx.lineTo(rx, rY - 70);
+        ctx.lineTo(rx + 26, rY - 60);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Solitary tall obelisk / monumental pillar with stepped base
+        ctx.fillRect(rx - 14, rY - 6, 28, 6);
+        ctx.fillRect(rx - 10, rY - 12, 20, 6);
+        ctx.fillRect(rx - 5, rY - 52, 10, 42);
+        ctx.beginPath();
+        ctx.moveTo(rx - 6, rY - 52);
+        ctx.lineTo(rx, rY - 62);
+        ctx.lineTo(rx + 6, rY - 52);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Drifting warm golden dust motes in the temple sunlight
+    for (let m = 0; m < 9; m++) {
+      const mx = ((m * 125 + time * 14 - camX * 0.04) % (GAME_W + 80)) - 40;
+      const my = 100 + ((m * 38 + Math.sin(time * 1.8 + m) * 20) % (GAME_H * 0.6));
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.45)';
+      ctx.beginPath();
+      ctx.arc(mx, my, 1.6 + (m % 3) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // 3e. Distant Volcanic Area Peaks, Smoking Calderas & Magma Fissures
+  if (distantVolcano > 0.02 && distantCave < 0.92) {
+    ctx.save();
+    ctx.globalAlpha = distantVolcano * (1 - distantCave);
+
+    // Deep volcanic smolder haze on horizon
+    const volAtmosphere = ctx.createLinearGradient(0, 120, 0, GAME_H);
+    volAtmosphere.addColorStop(0, 'rgba(220, 38, 38, 0.15)');
+    volAtmosphere.addColorStop(0.4, 'rgba(249, 115, 22, 0.12)');
+    volAtmosphere.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+    ctx.fillStyle = volAtmosphere;
+    ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+    // LAYER 1: Far Towering Volcanic Cones & Smoking Calderas (Parallax 0.028)
+    const farVolGrad = ctx.createLinearGradient(0, 160, 0, GAME_H + 120);
+    farVolGrad.addColorStop(0, '#3b1218');
+    farVolGrad.addColorStop(0.4, '#241016');
+    farVolGrad.addColorStop(1, '#180c10');
+    ctx.fillStyle = farVolGrad;
+
+    ctx.beginPath();
+    ctx.moveTo(-160, GAME_H + 160);
+    for (let x = -160; x <= GAME_W + 240; x += 30) {
+      const worldX = x + camX * 0.028;
+      // Jagged volcanic peaks with caldera scoops
+      const volcanoBase = 240 + Math.sin(worldX * 0.003) * 45 + Math.sin(worldX * 0.012) * 22;
+      ctx.lineTo(x, volcanoBase);
+    }
+    ctx.lineTo(GAME_W + 240, GAME_H + 160);
+    ctx.closePath();
+    ctx.fill();
+
+    // Billowing smoke plumes rising from distant caldera vents
+    for (let vx = -60; vx <= GAME_W + 180; vx += 280) {
+      const worldX = vx + camX * 0.028;
+      const ventY = 205 + Math.sin(worldX * 0.003) * 35;
+      
+      // Magma caldera rim glow
+      const rimGlow = ctx.createRadialGradient(vx, ventY, 2, vx, ventY, 22);
+      rimGlow.addColorStop(0, 'rgba(254, 240, 138, 0.7)');
+      rimGlow.addColorStop(0.4, 'rgba(249, 115, 22, 0.5)');
+      rimGlow.addColorStop(1, 'rgba(239, 68, 68, 0)');
+      ctx.fillStyle = rimGlow;
+      ctx.beginPath();
+      ctx.arc(vx, ventY, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Billowing smoke puffs rising into the sky
+      for (let s = 0; s < 5; s++) {
+        const puffTime = (time * 0.8 + s * 0.7) % 3.5;
+        const puffFrac = puffTime / 3.5;
+        const puffY = ventY - puffFrac * 110;
+        const puffX = vx + Math.sin(puffTime * 1.5 + s) * 14 + puffFrac * 22;
+        const puffR = 10 + puffFrac * 24;
+        const puffAlpha = (1 - puffFrac) * 0.35;
+        ctx.fillStyle = `rgba(45, 30, 35, ${puffAlpha})`;
+        ctx.beginPath();
+        ctx.arc(puffX, puffY, puffR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // LAYER 2: Mid-Distant Basalt Ridges & Glowing Magma Rivers (Parallax 0.055)
+    const midVolGrad = ctx.createLinearGradient(0, 210, 0, GAME_H + 120);
+    midVolGrad.addColorStop(0, '#261317');
+    midVolGrad.addColorStop(0.5, '#1b0e12');
+    midVolGrad.addColorStop(1, '#0f0709');
+    ctx.fillStyle = midVolGrad;
+
+    ctx.beginPath();
+    ctx.moveTo(-160, GAME_H + 160);
+    for (let x = -160; x <= GAME_W + 240; x += 35) {
+      const worldX = x + camX * 0.055;
+      const ridgeY = 270 + Math.sin(worldX * 0.005 + 1.4) * 40 + Math.cos(worldX * 0.015) * 15;
+      ctx.lineTo(x, ridgeY);
+    }
+    ctx.lineTo(GAME_W + 240, GAME_H + 160);
+    ctx.closePath();
+    ctx.fill();
+
+    // Incandescent glowing magma veins streaming down the ridges
+    for (let x = -100; x <= GAME_W + 160; x += 90) {
+      const worldX = x + camX * 0.055;
+      const ridgeY = 270 + Math.sin(worldX * 0.005 + 1.4) * 40 + Math.cos(worldX * 0.015) * 15;
+      const pulse = 0.7 + Math.sin(time * 3 + worldX * 0.04) * 0.3;
+
+      ctx.strokeStyle = `rgba(249, 115, 22, ${0.75 * pulse})`;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(x - 8, ridgeY + 5);
+      ctx.quadraticCurveTo(x + 4, ridgeY + 22, x - 2, ridgeY + 45);
+      ctx.stroke();
+
+      // Hot core of magma stream
+      ctx.strokeStyle = `rgba(254, 240, 138, ${0.85 * pulse})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x - 8, ridgeY + 5);
+      ctx.quadraticCurveTo(x + 4, ridgeY + 22, x - 2, ridgeY + 45);
+      ctx.stroke();
+    }
+
+    // Floating fiery ember motes rising through the volcanic air
+    for (let em = 0; em < 12; em++) {
+      const ex = ((em * 95 + time * 26 - camX * 0.06) % (GAME_W + 80)) - 40;
+      const ey = GAME_H - ((em * 42 + time * 32) % (GAME_H * 0.75));
+      const epulse = 0.5 + Math.sin(time * 6 + em) * 0.5;
+      ctx.fillStyle = em % 3 === 0 ? `rgba(254, 240, 138, ${epulse})` : `rgba(249, 115, 22, ${epulse})`;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 1.4 + (em % 3) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // 3f. Distant Meadow Mountains (Default when not Coastal, Cave, Mountain, Forest, Temple, or Volcano)
+  const meadowIntensity = Math.max(0, 1 - distantCoastal - distantCave - distantMountain - distantForest - distantTemple - distantVolcano);
   if (meadowIntensity > 0.02) {
     ctx.save();
     ctx.globalAlpha = meadowIntensity;
@@ -731,6 +1040,14 @@ export function drawBackground(
           cTop = lerpRgb(hexToRgb('#75cb58'), [22, 101, 52], midForest);
           cMid = lerpRgb(hexToRgb('#59b646'), [20, 83, 45], midForest);
           cBot = lerpRgb(hexToRgb('#3c8e32'), [6, 78, 59], midForest);
+        } else if (midTemple > 0.02) {
+          cTop = lerpRgb(hexToRgb('#75cb58'), [217, 180, 130], midTemple);
+          cMid = lerpRgb(hexToRgb('#59b646'), [180, 142, 95], midTemple);
+          cBot = lerpRgb(hexToRgb('#3c8e32'), [140, 105, 65], midTemple);
+        } else if (midVolcano > 0.02) {
+          cTop = lerpRgb(hexToRgb('#75cb58'), [55, 30, 32], midVolcano);
+          cMid = lerpRgb(hexToRgb('#59b646'), [38, 20, 22], midVolcano);
+          cBot = lerpRgb(hexToRgb('#3c8e32'), [22, 10, 12], midVolcano);
         }
 
         hillGrad.addColorStop(0, cTop);
@@ -1286,7 +1603,352 @@ export function drawBackground(
     ctx.restore();
   }
 
-  // 6. Environmental Scenery / Palms / Rock Formations / Stalagmites
+  // 5d. Midground Ancient Temple Ruins: Weathered Stone Pillars, Overgrown Arches & Broken Portals
+  if (midTemple > 0.05) {
+    ctx.save();
+    ctx.globalAlpha = midTemple;
+
+    // Midground parallax speed: 0.28
+    const spacing = 135;
+    const startX = -120;
+    const endX = GAME_W + 160;
+
+    for (let screenX = startX; screenX <= endX; screenX += spacing) {
+      const worldX = screenX + camX * 0.28;
+      const slotIndex = Math.floor(worldX / spacing);
+
+      const seed = Math.sin(slotIndex * 157.3 + 281.9) * 43758.5453;
+      const rand1 = seed - Math.floor(seed);
+      const rand2 = ((seed * 1.618) % 1 + 1) % 1;
+      const rand3 = ((seed * 2.718) % 1 + 1) % 1;
+
+      const drawX = screenX + (rand1 - 0.5) * 35;
+      const baseY = GAME_H - 85 + Math.sin(worldX * 0.005) * 16;
+      const ruinType = Math.floor(rand2 * 4); // 0: Pillar, 1: Arch, 2: Broken Column & Drums, 3: Altar/Pediment
+
+      // Ground shadow beneath stone ruin
+      ctx.fillStyle = 'rgba(70, 45, 20, 0.22)';
+      ctx.beginPath();
+      ctx.ellipse(drawX, baseY + 2, 28, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (ruinType === 0) {
+        // --- TYPE 0: STANDING FLUTED TEMPLE PILLAR WITH CAPITAL & IVY ---
+        const pilH = 55 + rand3 * 22;
+        const pilW = 16;
+
+        // Base plinth
+        ctx.fillStyle = '#bfa07d';
+        ctx.fillRect(drawX - pilW * 0.7, baseY - 8, pilW * 1.4, 8);
+        ctx.fillStyle = '#dbbda0';
+        ctx.fillRect(drawX - pilW * 0.7, baseY - 8, pilW * 0.4, 8); // Sunlit left
+
+        // Pillar shaft (fluted vertical gradient)
+        const shaftGrad = ctx.createLinearGradient(drawX - pilW * 0.5, 0, drawX + pilW * 0.5, 0);
+        shaftGrad.addColorStop(0, '#ebd1b5');
+        shaftGrad.addColorStop(0.35, '#d4b18f');
+        shaftGrad.addColorStop(0.8, '#a67d58');
+        shaftGrad.addColorStop(1, '#8c6239');
+        ctx.fillStyle = shaftGrad;
+        ctx.fillRect(drawX - pilW * 0.5, baseY - pilH, pilW, pilH - 8);
+
+        // Fluting lines
+        ctx.strokeStyle = 'rgba(120, 80, 45, 0.35)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(drawX - pilW * 0.2, baseY - pilH + 2);
+        ctx.lineTo(drawX - pilW * 0.2, baseY - 8);
+        ctx.moveTo(drawX + pilW * 0.15, baseY - pilH + 2);
+        ctx.lineTo(drawX + pilW * 0.15, baseY - 8);
+        ctx.stroke();
+
+        // Capital
+        ctx.fillStyle = '#ebd1b5';
+        ctx.fillRect(drawX - pilW * 0.75, baseY - pilH - 6, pilW * 1.5, 7);
+        ctx.fillStyle = '#8c6239';
+        ctx.fillRect(drawX + pilW * 0.35, baseY - pilH - 6, pilW * 0.4, 7);
+
+        // Creeping green ivy on column
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(drawX - pilW * 0.5, baseY - 12);
+        ctx.quadraticCurveTo(drawX, baseY - pilH * 0.4, drawX + pilW * 0.4, baseY - pilH * 0.65);
+        ctx.stroke();
+
+        ctx.fillStyle = '#15803d';
+        for (let l = 0; l < 4; l++) {
+          const lx = drawX - 4 + l * 2;
+          const ly = baseY - 16 - l * (pilH * 0.16);
+          ctx.beginPath();
+          ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (ruinType === 1) {
+        // --- TYPE 1: WEATHERED STONE ARCHWAY ---
+        const archW = 42 + rand3 * 10;
+        const archH = 52 + rand3 * 14;
+        const pierW = 11;
+
+        // Left pier
+        const pierGrad = ctx.createLinearGradient(drawX - archW * 0.5, 0, drawX + archW * 0.5, 0);
+        pierGrad.addColorStop(0, '#ebd1b5');
+        pierGrad.addColorStop(0.5, '#cba580');
+        pierGrad.addColorStop(1, '#8c6239');
+        ctx.fillStyle = pierGrad;
+        ctx.fillRect(drawX - archW * 0.5, baseY - archH, pierW, archH);
+        // Right pier
+        ctx.fillRect(drawX + archW * 0.5 - pierW, baseY - archH, pierW, archH);
+
+        // Arch span lintel
+        ctx.fillStyle = '#d4b18f';
+        ctx.fillRect(drawX - archW * 0.55, baseY - archH - 8, archW * 1.1, 9);
+        // Keystone
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(drawX - 4, baseY - archH - 11, 8, 12);
+
+        // Hanging moss threads from lintel
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(drawX - 10, baseY - archH + 1);
+        ctx.lineTo(drawX - 10, baseY - archH + 12);
+        ctx.moveTo(drawX + 8, baseY - archH + 1);
+        ctx.lineTo(drawX + 8, baseY - archH + 16);
+        ctx.stroke();
+      } else if (ruinType === 2) {
+        // --- TYPE 2: BROKEN PILLAR STUMP & TUMBLING MASONRY BLOCKS ---
+        const stumpH = 26 + rand3 * 14;
+        const colW = 16;
+
+        // Broken stump
+        ctx.fillStyle = '#cba580';
+        ctx.beginPath();
+        ctx.moveTo(drawX - colW * 0.5, baseY);
+        ctx.lineTo(drawX - colW * 0.5, baseY - stumpH);
+        ctx.lineTo(drawX - colW * 0.1, baseY - stumpH - 4);
+        ctx.lineTo(drawX + colW * 0.5, baseY - stumpH + 5);
+        ctx.lineTo(drawX + colW * 0.5, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Sunlit edge
+        ctx.fillStyle = '#ebd1b5';
+        ctx.fillRect(drawX - colW * 0.5, baseY - stumpH, 4, stumpH);
+
+        // Fallen cylindrical column drum beside stump
+        ctx.fillStyle = '#b8926e';
+        ctx.fillRect(drawX + 10, baseY - 12, 18, 12);
+        ctx.fillStyle = '#dcb997';
+        ctx.fillRect(drawX + 10, baseY - 12, 6, 12);
+
+        // Cute yellow wildflowers growing by stone
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(drawX - 12, baseY - 5, 2.5, 0, Math.PI * 2);
+        ctx.arc(drawX + 26, baseY - 4, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // --- TYPE 3: WEATHERED CARVED ALTAR / STELE PEDIMENT ---
+        const altarW = 34 + rand3 * 12;
+        const altarH = 32 + rand3 * 10;
+
+        // Tiered steps
+        ctx.fillStyle = '#a8815d';
+        ctx.fillRect(drawX - altarW * 0.6, baseY - 6, altarW * 1.2, 6);
+        ctx.fillStyle = '#be9772';
+        ctx.fillRect(drawX - altarW * 0.45, baseY - 14, altarW * 0.9, 8);
+        ctx.fillStyle = '#d4b18f';
+        ctx.fillRect(drawX - altarW * 0.35, baseY - altarH, altarW * 0.7, altarH - 14);
+
+        // Inscribed glyph line
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.65)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(drawX - 6, baseY - altarH * 0.6);
+        ctx.lineTo(drawX + 6, baseY - altarH * 0.6);
+        ctx.moveTo(drawX, baseY - altarH * 0.75);
+        ctx.lineTo(drawX, baseY - altarH * 0.45);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // 5e. Midground Volcanic Area: Dark Basalt Spalls, Cascading Lava Falls & Molten Pools
+  if (midVolcano > 0.05) {
+    ctx.save();
+    ctx.globalAlpha = midVolcano;
+
+    // Midground parallax speed: 0.28
+    const spacing = 135;
+    const startX = -120;
+    const endX = GAME_W + 160;
+
+    for (let screenX = startX; screenX <= endX; screenX += spacing) {
+      const worldX = screenX + camX * 0.28;
+      const slotIndex = Math.floor(worldX / spacing);
+
+      const seed = Math.sin(slotIndex * 183.7 + 193.1) * 43758.5453;
+      const rand1 = seed - Math.floor(seed);
+      const rand2 = ((seed * 1.618) % 1 + 1) % 1;
+      const rand3 = ((seed * 2.718) % 1 + 1) % 1;
+
+      const drawX = screenX + (rand1 - 0.5) * 35;
+      const baseY = GAME_H - 85 + Math.sin(worldX * 0.005) * 16;
+      const cragType = Math.floor(rand2 * 4); // 0: Basalt Spire, 1: Lava Waterfall, 2: Fumarole, 3: Obsidian Outcrop
+
+      // Fiery magma glow on ground beneath
+      const lavaGlow = ctx.createRadialGradient(drawX, baseY, 2, drawX, baseY, 26);
+      lavaGlow.addColorStop(0, 'rgba(249, 115, 22, 0.45)');
+      lavaGlow.addColorStop(0.6, 'rgba(220, 38, 38, 0.2)');
+      lavaGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = lavaGlow;
+      ctx.beginPath();
+      ctx.ellipse(drawX, baseY + 2, 28, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (cragType === 0) {
+        // --- TYPE 0: TOWERING BASALT CRAG SPIRE WITH MAGMA VEIN ---
+        const spireH = 55 + rand3 * 25;
+        const spireW = 20 + rand3 * 8;
+
+        // Dark basalt rock body
+        ctx.fillStyle = '#1c1917';
+        ctx.beginPath();
+        ctx.moveTo(drawX - spireW * 0.5, baseY);
+        ctx.lineTo(drawX - spireW * 0.2, baseY - spireH);
+        ctx.lineTo(drawX + spireW * 0.1, baseY - spireH - 6);
+        ctx.lineTo(drawX + spireW * 0.45, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Chiseled rock facet highlight
+        ctx.fillStyle = '#292524';
+        ctx.beginPath();
+        ctx.moveTo(drawX - spireW * 0.5, baseY);
+        ctx.lineTo(drawX - spireW * 0.2, baseY - spireH);
+        ctx.lineTo(drawX, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Glowing magma fissure
+        const pulse = 0.7 + Math.sin(time * 3 + worldX * 0.05) * 0.3;
+        ctx.strokeStyle = `rgba(249, 115, 22, ${pulse})`;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(drawX - 2, baseY - spireH + 8);
+        ctx.lineTo(drawX + 3, baseY - spireH * 0.5);
+        ctx.lineTo(drawX - 1, baseY - 6);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(254, 240, 138, ${pulse})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (cragType === 1) {
+        // --- TYPE 1: CASCADING LAVA WATERFALL & POOL ---
+        const rockH = 45 + rand3 * 18;
+        const rockW = 32 + rand3 * 10;
+
+        // Rock shelf
+        ctx.fillStyle = '#262626';
+        ctx.fillRect(drawX - rockW * 0.5, baseY - rockH, rockW, rockH);
+        ctx.fillStyle = '#171717';
+        ctx.fillRect(drawX, baseY - rockH, rockW * 0.5, rockH);
+
+        // Cascading lava flow pouring down
+        const lavaAnim = (time * 15) % 12;
+        const lavaGrad = ctx.createLinearGradient(0, baseY - rockH, 0, baseY);
+        lavaGrad.addColorStop(0, '#fef08a');
+        lavaGrad.addColorStop(0.3, '#f97316');
+        lavaGrad.addColorStop(0.85, '#ef4444');
+        lavaGrad.addColorStop(1, '#f97316');
+        ctx.fillStyle = lavaGrad;
+        ctx.fillRect(drawX - 5, baseY - rockH + 4, 10, rockH - 4);
+
+        // Glowing hot pool at base
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath();
+        ctx.ellipse(drawX, baseY - 2, 14, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.ellipse(drawX, baseY - 2, 7, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (cragType === 2) {
+        // --- TYPE 2: STEAMING VOLCANIC FUMAROLE VENT ---
+        const ventW = 28 + rand3 * 8;
+        const ventH = 26 + rand3 * 12;
+
+        ctx.fillStyle = '#27272a';
+        ctx.beginPath();
+        ctx.moveTo(drawX - ventW * 0.5, baseY);
+        ctx.lineTo(drawX - ventW * 0.25, baseY - ventH);
+        ctx.lineTo(drawX + ventW * 0.25, baseY - ventH);
+        ctx.lineTo(drawX + ventW * 0.5, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Vent crater mouth (hot magma glow)
+        ctx.fillStyle = '#ea580c';
+        ctx.beginPath();
+        ctx.ellipse(drawX, baseY - ventH, ventW * 0.25, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.ellipse(drawX, baseY - ventH, ventW * 0.12, 1.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sulfur crystals on rim
+        ctx.fillStyle = '#eab308';
+        ctx.fillRect(drawX - ventW * 0.3, baseY - ventH + 2, 3, 3);
+        ctx.fillRect(drawX + ventW * 0.2, baseY - ventH + 1, 3, 3);
+
+        // Hot vapor puff rising
+        const puffFrac = ((time * 0.9 + rand1) % 2.5) / 2.5;
+        const puffY = (baseY - ventH) - puffFrac * 45;
+        const puffR = 4 + puffFrac * 12;
+        ctx.fillStyle = `rgba(161, 161, 170, ${(1 - puffFrac) * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(drawX + Math.sin(time * 2) * 5, puffY, puffR, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // --- TYPE 3: CHISELED OBSIDIAN BOULDER OUTLET ---
+        const boulderW = 34 + rand3 * 12;
+        const boulderH = 24 + rand3 * 10;
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.moveTo(drawX - boulderW * 0.45, baseY);
+        ctx.lineTo(drawX - boulderW * 0.3, baseY - boulderH);
+        ctx.lineTo(drawX + boulderW * 0.1, baseY - boulderH * 1.15);
+        ctx.lineTo(drawX + boulderW * 0.45, baseY - boulderH * 0.4);
+        ctx.lineTo(drawX + boulderW * 0.5, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Sharp glossy obsidian facet
+        ctx.fillStyle = '#334155';
+        ctx.beginPath();
+        ctx.moveTo(drawX - boulderW * 0.3, baseY - boulderH);
+        ctx.lineTo(drawX + boulderW * 0.1, baseY - boulderH * 1.15);
+        ctx.lineTo(drawX, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Red hot seam under rock
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(drawX - boulderW * 0.3, baseY);
+        ctx.lineTo(drawX + boulderW * 0.2, baseY);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
   // Uses granular world position getDetailedBiomeAtX(t.x) for seamless travel transitions
   ctx.save();
   trees.forEach(t => {
@@ -2508,6 +3170,600 @@ export function drawBackground(
           ctx.arc(drawX - 12, t.y - 5, 1, 0, Math.PI * 2);
           ctx.fill();
         }
+      } else if (detailed.primary === 'temple') {
+        // =================================================================
+        // ANCIENT TEMPLE RUINS PROCEDURAL SCENERY
+        // =================================================================
+        const variant = itemType % 6;
+        if (variant === 0) {
+          // --- 0: ANCIENT FLUTED PILLAR WITH CARVED CAPITAL & CREEPING IVY ---
+          // Soft ground shadow
+          ctx.fillStyle = 'rgba(70, 45, 20, 0.28)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 30, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const pilW = 20;
+          const pilH = th * 0.95;
+
+          // Two-tiered carved pedestal base
+          ctx.fillStyle = '#a67d58';
+          ctx.fillRect(drawX - pilW * 0.85, t.y - 7, pilW * 1.7, 7);
+          ctx.fillStyle = '#cda277';
+          ctx.fillRect(drawX - pilW * 0.85, t.y - 7, pilW * 0.5, 7); // Sunlit left
+          ctx.fillStyle = '#bfa07d';
+          ctx.fillRect(drawX - pilW * 0.7, t.y - 14, pilW * 1.4, 7);
+          ctx.fillStyle = '#ebd1b5';
+          ctx.fillRect(drawX - pilW * 0.7, t.y - 14, pilW * 0.45, 7);
+
+          // Shaft body with fluting gradient
+          const shaftGrad = ctx.createLinearGradient(drawX - pilW * 0.5, 0, drawX + pilW * 0.5, 0);
+          shaftGrad.addColorStop(0, '#f5e4cf');
+          shaftGrad.addColorStop(0.35, '#dcba97');
+          shaftGrad.addColorStop(0.75, '#b08760');
+          shaftGrad.addColorStop(1, '#8c6239');
+          ctx.fillStyle = shaftGrad;
+          ctx.fillRect(drawX - pilW * 0.5, t.y - pilH, pilW, pilH - 14);
+
+          // Vertical fluting lines
+          ctx.strokeStyle = 'rgba(100, 65, 35, 0.4)';
+          ctx.lineWidth = 1.6;
+          for (let f = -1; f <= 1; f++) {
+            ctx.beginPath();
+            ctx.moveTo(drawX + f * 5, t.y - pilH + 3);
+            ctx.lineTo(drawX + f * 5, t.y - 14);
+            ctx.stroke();
+          }
+
+          // Carved Ionic style scrolled capital
+          ctx.fillStyle = '#ebd1b5';
+          ctx.fillRect(drawX - pilW * 0.9, t.y - pilH - 8, pilW * 1.8, 9);
+          ctx.fillStyle = '#d4b18f';
+          ctx.beginPath();
+          ctx.arc(drawX - pilW * 0.75, t.y - pilH - 4, 4.5, 0, Math.PI * 2);
+          ctx.arc(drawX + pilW * 0.75, t.y - pilH - 4, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Creeping ivy vine spiraling around column
+          ctx.strokeStyle = '#22c55e';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(drawX - pilW * 0.5, t.y - 16);
+          ctx.quadraticCurveTo(drawX + pilW * 0.4, t.y - pilH * 0.35, drawX - pilW * 0.4, t.y - pilH * 0.65);
+          ctx.quadraticCurveTo(drawX + pilW * 0.5, t.y - pilH * 0.85, drawX, t.y - pilH);
+          ctx.stroke();
+
+          // Lush ivy leaf clusters
+          ctx.fillStyle = '#15803d';
+          for (let l = 0; l < 6; l++) {
+            const lx = drawX - pilW * 0.35 + Math.sin(l * 1.5) * 8;
+            const ly = t.y - 20 - l * (pilH * 0.14);
+            ctx.beginPath();
+            ctx.arc(lx, ly, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.arc(lx - 0.8, ly - 0.8, 1.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#15803d';
+          }
+        } else if (variant === 1) {
+          // --- 1: OVERGROWN ANCIENT TEMPLE STONE ARCHWAY ---
+          ctx.fillStyle = 'rgba(70, 45, 20, 0.28)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 38, 9, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const archW = 54;
+          const archH = th * 0.9;
+          const pierW = 13;
+
+          // Left pier
+          const pierGrad = ctx.createLinearGradient(drawX - archW * 0.5, 0, drawX + archW * 0.5, 0);
+          pierGrad.addColorStop(0, '#f5e4cf');
+          pierGrad.addColorStop(0.4, '#d4b18f');
+          pierGrad.addColorStop(1, '#8c6239');
+          ctx.fillStyle = pierGrad;
+          ctx.fillRect(drawX - archW * 0.5, t.y - archH, pierW, archH);
+          // Right pier
+          ctx.fillRect(drawX + archW * 0.5 - pierW, t.y - archH, pierW, archH);
+
+          // Horizontal stone block mortar cuts on piers
+          ctx.fillStyle = 'rgba(100, 65, 35, 0.4)';
+          for (let py = t.y - 18; py > t.y - archH; py -= 16) {
+            ctx.fillRect(drawX - archW * 0.5, py, pierW, 1.6);
+            ctx.fillRect(drawX + archW * 0.5 - pierW, py, pierW, 1.6);
+          }
+
+          // Arched lintel block
+          ctx.fillStyle = '#ebd1b5';
+          ctx.fillRect(drawX - archW * 0.55, t.y - archH - 12, archW * 1.1, 13);
+          ctx.fillStyle = '#a67d58';
+          ctx.fillRect(drawX + archW * 0.35, t.y - archH - 12, archW * 0.2, 13);
+
+          // Golden keystone
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.moveTo(drawX - 5, t.y - archH - 15);
+          ctx.lineTo(drawX + 5, t.y - archH - 15);
+          ctx.lineTo(drawX + 3.5, t.y - archH);
+          ctx.lineTo(drawX - 3.5, t.y - archH);
+          ctx.closePath();
+          ctx.fill();
+
+          // Hanging moss curtains swaying under arch
+          ctx.strokeStyle = '#22c55e';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(drawX - 12, t.y - archH);
+          ctx.lineTo(drawX - 12 + sway * 0.5, t.y - archH + 16);
+          ctx.moveTo(drawX + 10, t.y - archH);
+          ctx.lineTo(drawX + 10 + sway * 0.6, t.y - archH + 22);
+          ctx.moveTo(drawX, t.y - archH);
+          ctx.lineTo(drawX + sway * 0.4, t.y - archH + 12);
+          ctx.stroke();
+        } else if (variant === 2) {
+          // --- 2: INSCRIBED RUNIC MONOLITH / ANCIENT STELE ---
+          ctx.fillStyle = 'rgba(70, 45, 20, 0.26)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 26, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const steleW = 22;
+          const steleH = th * 0.8;
+
+          // Stepped stone plinth
+          ctx.fillStyle = '#9e734c';
+          ctx.fillRect(drawX - steleW * 0.8, t.y - 7, steleW * 1.6, 7);
+          ctx.fillStyle = '#c49a71';
+          ctx.fillRect(drawX - steleW * 0.6, t.y - 13, steleW * 1.2, 6);
+
+          // Tapered stele stone body
+          ctx.fillStyle = '#ebd1b5';
+          ctx.beginPath();
+          ctx.moveTo(drawX - steleW * 0.45, t.y - 13);
+          ctx.lineTo(drawX - steleW * 0.35, t.y - steleH);
+          ctx.lineTo(drawX, t.y - steleH - 10);
+          ctx.lineTo(drawX + steleW * 0.35, t.y - steleH);
+          ctx.lineTo(drawX + steleW * 0.45, t.y - 13);
+          ctx.closePath();
+          ctx.fill();
+
+          // Shadowed side of stele
+          ctx.fillStyle = '#a67d58';
+          ctx.beginPath();
+          ctx.moveTo(drawX, t.y - steleH - 10);
+          ctx.lineTo(drawX + steleW * 0.35, t.y - steleH);
+          ctx.lineTo(drawX + steleW * 0.45, t.y - 13);
+          ctx.lineTo(drawX, t.y - 13);
+          ctx.closePath();
+          ctx.fill();
+
+          // Mystical glowing inscribed runic glyphs
+          const glyphPulse = 0.65 + Math.sin(time * 3 + t.x * 0.05) * 0.35;
+          ctx.strokeStyle = `rgba(251, 191, 36, ${glyphPulse})`;
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          // Rune 1
+          ctx.moveTo(drawX - 3, t.y - steleH * 0.7);
+          ctx.lineTo(drawX + 3, t.y - steleH * 0.7);
+          ctx.moveTo(drawX, t.y - steleH * 0.8);
+          ctx.lineTo(drawX, t.y - steleH * 0.6);
+          // Rune 2 (diamond)
+          ctx.moveTo(drawX, t.y - steleH * 0.52);
+          ctx.lineTo(drawX + 3, t.y - steleH * 0.44);
+          ctx.lineTo(drawX, t.y - steleH * 0.36);
+          ctx.lineTo(drawX - 3, t.y - steleH * 0.44);
+          ctx.closePath();
+          ctx.stroke();
+
+          // Soft ambient runic aura
+          const runeGlow = ctx.createRadialGradient(drawX, t.y - steleH * 0.5, 2, drawX, t.y - steleH * 0.5, 24);
+          runeGlow.addColorStop(0, `rgba(254, 240, 138, ${0.4 * glyphPulse})`);
+          runeGlow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+          ctx.fillStyle = runeGlow;
+          ctx.beginPath();
+          ctx.arc(drawX, t.y - steleH * 0.5, 24, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (variant === 3) {
+          // --- 3: BROKEN PEDIMENT & TUMBLING COLUMN DRUMS ---
+          ctx.fillStyle = 'rgba(70, 45, 20, 0.28)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 36, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Tumbled cylindrical column drum (horizontal)
+          ctx.fillStyle = '#ebd1b5';
+          ctx.fillRect(drawX - 24, t.y - 18, 22, 18);
+          ctx.fillStyle = '#a67d58';
+          ctx.fillRect(drawX - 10, t.y - 18, 8, 18);
+          ctx.fillStyle = '#d4b18f';
+          ctx.beginPath();
+          ctx.ellipse(drawX - 24, t.y - 9, 4, 9, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Leaning broken pediment block
+          ctx.fillStyle = '#f5e4cf';
+          ctx.beginPath();
+          ctx.moveTo(drawX + 2, t.y);
+          ctx.lineTo(drawX + 6, t.y - 38);
+          ctx.lineTo(drawX + 28, t.y - 12);
+          ctx.lineTo(drawX + 26, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#a67d58';
+          ctx.beginPath();
+          ctx.moveTo(drawX + 6, t.y - 38);
+          ctx.lineTo(drawX + 28, t.y - 12);
+          ctx.lineTo(drawX + 26, t.y);
+          ctx.lineTo(drawX + 16, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          // Wild ferns and golden buttercups sprouting around the ruin
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.arc(drawX - 8, t.y - 4, 4, 0, Math.PI * 2);
+          ctx.arc(drawX + 32, t.y - 4, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(drawX - 8, t.y - 7, 2.5, 0, Math.PI * 2);
+          ctx.arc(drawX + 32, t.y - 7, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (variant === 4) {
+          // --- 4: CEREMONIAL STONE BRAZIER WITH GOLDEN FLAME ---
+          ctx.fillStyle = 'rgba(70, 45, 20, 0.28)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 24, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const urnW = 28;
+          const urnH = th * 0.72;
+
+          // Stepped stone pedestal
+          ctx.fillStyle = '#a67d58';
+          ctx.fillRect(drawX - urnW * 0.6, t.y - 6, urnW * 1.2, 6);
+          ctx.fillStyle = '#cba580';
+          ctx.fillRect(drawX - urnW * 0.35, t.y - urnH * 0.65, urnW * 0.7, urnH * 0.65 - 6);
+          ctx.fillStyle = '#f5e4cf';
+          ctx.fillRect(drawX - urnW * 0.35, t.y - urnH * 0.65, urnW * 0.25, urnH * 0.65 - 6); // Highlight
+
+          // Stone brazier bowl
+          ctx.fillStyle = '#d4b18f';
+          ctx.beginPath();
+          ctx.moveTo(drawX - urnW * 0.5, t.y - urnH);
+          ctx.lineTo(drawX + urnW * 0.5, t.y - urnH);
+          ctx.lineTo(drawX + urnW * 0.3, t.y - urnH * 0.65);
+          ctx.lineTo(drawX - urnW * 0.3, t.y - urnH * 0.65);
+          ctx.closePath();
+          ctx.fill();
+
+          // Ambient warm brazier glow
+          const flameGlow = ctx.createRadialGradient(drawX, t.y - urnH - 10, 2, drawX, t.y - urnH - 10, 36);
+          flameGlow.addColorStop(0, 'rgba(254, 240, 138, 0.6)');
+          flameGlow.addColorStop(0.4, 'rgba(245, 158, 11, 0.3)');
+          flameGlow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+          ctx.fillStyle = flameGlow;
+          ctx.beginPath();
+          ctx.arc(drawX, t.y - urnH - 10, 36, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Animated golden eternal flame
+          const flameFlicker = Math.sin(time * 8 + t.x) * 3;
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath();
+          ctx.moveTo(drawX - 9, t.y - urnH);
+          ctx.quadraticCurveTo(drawX - 5 + flameFlicker, t.y - urnH - 18, drawX + flameFlicker * 0.5, t.y - urnH - 24);
+          ctx.quadraticCurveTo(drawX + 5 + flameFlicker, t.y - urnH - 18, drawX + 9, t.y - urnH);
+          ctx.closePath();
+          ctx.fill();
+
+          // Core hot flame
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.moveTo(drawX - 4, t.y - urnH);
+          ctx.quadraticCurveTo(drawX, t.y - urnH - 12, drawX, t.y - urnH - 16);
+          ctx.quadraticCurveTo(drawX, t.y - urnH - 12, drawX + 4, t.y - urnH);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // --- 5: RUINED TEMPLE WALL FRAGMENT WITH CARVED FRIEZE ---
+          ctx.fillStyle = 'rgba(70, 45, 20, 0.28)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 34, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const wallW = 44;
+          const wallH = th * 0.65;
+
+          // Main stone wall block
+          const wallGrad = ctx.createLinearGradient(drawX - wallW * 0.5, 0, drawX + wallW * 0.5, 0);
+          wallGrad.addColorStop(0, '#f5e4cf');
+          wallGrad.addColorStop(0.4, '#d4b18f');
+          wallGrad.addColorStop(1, '#8c6239');
+          ctx.fillStyle = wallGrad;
+          ctx.beginPath();
+          ctx.moveTo(drawX - wallW * 0.5, t.y);
+          ctx.lineTo(drawX - wallW * 0.5, t.y - wallH);
+          ctx.lineTo(drawX - wallW * 0.2, t.y - wallH - 6);
+          ctx.lineTo(drawX + wallW * 0.1, t.y - wallH + 4);
+          ctx.lineTo(drawX + wallW * 0.5, t.y - wallH * 0.6);
+          ctx.lineTo(drawX + wallW * 0.5, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          // Carved geometric relief frieze line
+          ctx.strokeStyle = 'rgba(100, 65, 35, 0.5)';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(drawX - wallW * 0.45, t.y - wallH * 0.5);
+          ctx.lineTo(drawX + wallW * 0.4, t.y - wallH * 0.5);
+          ctx.stroke();
+
+          // Creeping ivy on wall
+          ctx.strokeStyle = '#15803d';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(drawX - wallW * 0.4, t.y);
+          ctx.quadraticCurveTo(drawX - wallW * 0.2, t.y - wallH * 0.4, drawX, t.y - wallH * 0.8);
+          ctx.stroke();
+
+          ctx.fillStyle = '#4ade80';
+          ctx.beginPath();
+          ctx.arc(drawX - 10, t.y - 14, 3, 0, Math.PI * 2);
+          ctx.arc(drawX - 4, t.y - 24, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (detailed.primary === 'volcano') {
+        // =================================================================
+        // VOLCANIC AREA PROCEDURAL SCENERY
+        // =================================================================
+        const variant = itemType % 6;
+        if (variant === 0) {
+          // --- 0: TOWERING BASALT SPIRE WITH GLOWING MAGMA CORE ---
+          ctx.fillStyle = 'rgba(20, 10, 12, 0.35)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 28, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const spW = 26;
+          const spH = th * 0.95;
+
+          // Main dark basalt body
+          ctx.fillStyle = '#1c1917';
+          ctx.beginPath();
+          ctx.moveTo(drawX - spW * 0.5, t.y);
+          ctx.lineTo(drawX - spW * 0.2, t.y - spH);
+          ctx.lineTo(drawX + spW * 0.05, t.y - spH - 8);
+          ctx.lineTo(drawX + spW * 0.4, t.y - spH * 0.45);
+          ctx.lineTo(drawX + spW * 0.45, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          // Chiseled rock facet highlight
+          ctx.fillStyle = '#292524';
+          ctx.beginPath();
+          ctx.moveTo(drawX - spW * 0.5, t.y);
+          ctx.lineTo(drawX - spW * 0.2, t.y - spH);
+          ctx.lineTo(drawX, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          // Pulsing glowing molten magma crack
+          const pulse = 0.75 + Math.sin(time * 3 + t.x * 0.04) * 0.25;
+          ctx.strokeStyle = `rgba(249, 115, 22, ${pulse})`;
+          ctx.lineWidth = 2.8;
+          ctx.beginPath();
+          ctx.moveTo(drawX - 2, t.y - spH + 10);
+          ctx.lineTo(drawX + 3, t.y - spH * 0.6);
+          ctx.lineTo(drawX - 1, t.y - spH * 0.3);
+          ctx.lineTo(drawX + 4, t.y - 6);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(254, 240, 138, ${pulse})`;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+          // Ambient magma glow
+          const spireGlow = ctx.createRadialGradient(drawX, t.y - spH * 0.5, 2, drawX, t.y - spH * 0.5, 32);
+          spireGlow.addColorStop(0, `rgba(239, 68, 68, ${0.4 * pulse})`);
+          spireGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = spireGlow;
+          ctx.beginPath();
+          ctx.arc(drawX, t.y - spH * 0.5, 32, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (variant === 1) {
+          // --- 1: SMOLDERING VOLCANIC VENT / FUMAROLE WITH STEAM PUFFS ---
+          ctx.fillStyle = 'rgba(20, 10, 12, 0.35)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 32, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const vW = 34;
+          const vH = th * 0.65;
+
+          // Cone vent rock body
+          ctx.fillStyle = '#262626';
+          ctx.beginPath();
+          ctx.moveTo(drawX - vW * 0.5, t.y);
+          ctx.lineTo(drawX - vW * 0.28, t.y - vH);
+          ctx.lineTo(drawX + vW * 0.28, t.y - vH);
+          ctx.lineTo(drawX + vW * 0.5, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          // Crater opening
+          ctx.fillStyle = '#171717';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y - vH, vW * 0.28, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Incandescent magma mouth
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y - vH, vW * 0.2, 3.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y - vH, vW * 0.1, 1.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Sulfur crystals on rim
+          ctx.fillStyle = '#eab308';
+          ctx.fillRect(drawX - vW * 0.25, t.y - vH + 2, 3.5, 3);
+          ctx.fillRect(drawX + vW * 0.18, t.y - vH + 1, 3.5, 3);
+
+          // Animated smoke puffs rising from vent
+          for (let s = 0; s < 3; s++) {
+            const pTime = (time * 1.2 + s * 0.8 + t.x * 0.01) % 2.4;
+            const pFrac = pTime / 2.4;
+            const pY = (t.y - vH) - pFrac * 60;
+            const pX = drawX + Math.sin(pTime * 2 + s) * 7 + pFrac * 10;
+            const pR = 5 + pFrac * 14;
+            ctx.fillStyle = `rgba(113, 113, 122, ${(1 - pFrac) * 0.4})`;
+            ctx.beginPath();
+            ctx.arc(pX, pY, pR, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (variant === 2) {
+          // --- 2: CHISELED OBSIDIAN CRAG WITH SULFUR FLECK DEPOSITS ---
+          ctx.fillStyle = 'rgba(20, 10, 12, 0.35)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 30, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const oW = 36;
+          const oH = th * 0.75;
+
+          // Main glossy obsidian rock
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo(drawX - oW * 0.48, t.y);
+          ctx.lineTo(drawX - oW * 0.35, t.y - oH * 0.8);
+          ctx.lineTo(drawX - oW * 0.05, t.y - oH);
+          ctx.lineTo(drawX + oW * 0.3, t.y - oH * 0.85);
+          ctx.lineTo(drawX + oW * 0.48, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          // Reflective specular facets
+          ctx.fillStyle = '#334155';
+          ctx.beginPath();
+          ctx.moveTo(drawX - oW * 0.35, t.y - oH * 0.8);
+          ctx.lineTo(drawX - oW * 0.05, t.y - oH);
+          ctx.lineTo(drawX + oW * 0.05, t.y - oH * 0.3);
+          ctx.lineTo(drawX - oW * 0.15, t.y);
+          ctx.closePath();
+          ctx.fill();
+
+          // Sharp highlight edge
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(drawX - oW * 0.05, t.y - oH);
+          ctx.lineTo(drawX + oW * 0.05, t.y - oH * 0.3);
+          ctx.stroke();
+
+          // Bright sulfur crystal crusts
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(drawX - oW * 0.28, t.y - 12, 5, 4);
+          ctx.fillRect(drawX + oW * 0.18, t.y - 16, 6, 4);
+        } else if (variant === 3) {
+          // --- 3: HARDENED PILLOW LAVA MOUND WITH GLOWING CREVICES ---
+          ctx.fillStyle = 'rgba(20, 10, 12, 0.35)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 34, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const mndW = 42;
+          const mndH = th * 0.6;
+
+          // Cooled basalt crust mound
+          ctx.fillStyle = '#262626';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y - mndH * 0.4, mndW * 0.48, mndH * 0.5, 0, Math.PI, 0, false);
+          ctx.closePath();
+          ctx.fill();
+
+          // Glowing incandescent lava cracks
+          const glowT = 0.7 + Math.sin(time * 4 + t.x * 0.03) * 0.3;
+          ctx.strokeStyle = `rgba(239, 68, 68, ${glowT})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(drawX, t.y - mndH * 0.4, mndW * 0.35, Math.PI * 1.15, Math.PI * 1.45);
+          ctx.arc(drawX + 8, t.y - mndH * 0.3, mndW * 0.25, Math.PI * 1.5, Math.PI * 1.85);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(254, 240, 138, ${glowT})`;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        } else if (variant === 4) {
+          // --- 4: CHARRED BASALT HEXAGONAL COLUMN & FLOATING EMBERS ---
+          ctx.fillStyle = 'rgba(20, 10, 12, 0.35)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 26, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const colW = 20;
+          const colH = th * 0.85;
+
+          // Column body
+          ctx.fillStyle = '#171717';
+          ctx.fillRect(drawX - colW * 0.5, t.y - colH, colW, colH);
+          ctx.fillStyle = '#262626';
+          ctx.fillRect(drawX - colW * 0.5, t.y - colH, colW * 0.45, colH);
+
+          // Hexagonal top cap
+          ctx.fillStyle = '#404040';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y - colH, colW * 0.5, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Floating fiery embers rising around column
+          for (let em = 0; em < 4; em++) {
+            const eFrac = ((time * 1.5 + em * 0.6 + t.x * 0.02) % 2.5) / 2.5;
+            const eY = t.y - eFrac * (colH + 25);
+            const eX = drawX - 12 + em * 8 + Math.sin(time * 3 + em) * 5;
+            ctx.fillStyle = em % 2 === 0 ? '#fef08a' : '#f97316';
+            ctx.beginPath();
+            ctx.arc(eX, eY, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          // --- 5: VOLCANIC GEODE BOULDER WITH FIERY MOLTEN CRYSTALS ---
+          ctx.fillStyle = 'rgba(20, 10, 12, 0.35)';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y + 4, 30, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const gW = 36;
+          const gH = th * 0.65;
+
+          // Dark outer crust
+          ctx.fillStyle = '#1c1917';
+          ctx.beginPath();
+          ctx.ellipse(drawX, t.y - gH * 0.45, gW * 0.45, gH * 0.45, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Hollow glowing inner cavity
+          ctx.fillStyle = '#7f1d1d';
+          ctx.beginPath();
+          ctx.ellipse(drawX + 2, t.y - gH * 0.45, gW * 0.28, gH * 0.28, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Glowing magma crystal core
+          const coreGlow = 0.7 + Math.sin(time * 3.5 + t.x * 0.05) * 0.3;
+          ctx.fillStyle = `rgba(249, 115, 22, ${coreGlow})`;
+          ctx.beginPath();
+          ctx.ellipse(drawX + 2, t.y - gH * 0.45, gW * 0.18, gH * 0.18, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(drawX + 2, t.y - gH * 0.45, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else {
         // PURE MEADOW OAK TREE
         ctx.fillStyle = 'rgba(20, 45, 25, 0.24)';
@@ -2865,6 +4121,118 @@ export function drawPlatforms(
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(lx + 0.5, p.y - 4, 1, 1);
           }
+        }
+      } else if (biome === 'temple') {
+        // --- ANCIENT TEMPLE RUINS PAVED STONE BLOCKS & CRUMBLING ASHLAR GROUND ---
+        // 1. Weathered Sandstone / Limestone Bedrock Strata
+        const templeGroundGrad = ctx.createLinearGradient(0, p.y + 14, 0, p.y + p.height);
+        templeGroundGrad.addColorStop(0, '#a67d58');
+        templeGroundGrad.addColorStop(0.2, '#7c5332');
+        templeGroundGrad.addColorStop(0.7, '#59381e');
+        templeGroundGrad.addColorStop(1, '#38210f');
+        ctx.fillStyle = templeGroundGrad;
+        ctx.fillRect(drawX, p.y, p.width, p.height);
+
+        // Ashlar masonry strata block lines (horizontal mortar joints)
+        ctx.fillStyle = 'rgba(45, 25, 10, 0.5)';
+        ctx.fillRect(drawX, p.y + 42, p.width, 3);
+        ctx.fillRect(drawX, p.y + 85, p.width, 2.5);
+
+        // Vertical block seams in strata
+        ctx.fillStyle = 'rgba(35, 18, 8, 0.4)';
+        for (let bx = drawX + 45; bx < drawX + p.width - 20; bx += 80) {
+          ctx.fillRect(bx, p.y + 16, 2.5, 26);
+          ctx.fillRect(bx + 40, p.y + 45, 2.5, 40);
+        }
+
+        // 2. Chiseled Flagstone Surface Slabs with Moss in Morter Cracks
+        const flagGrad = ctx.createLinearGradient(0, p.y, 0, p.y + 16);
+        flagGrad.addColorStop(0, '#ebd1b5');
+        flagGrad.addColorStop(0.4, '#d4b18f');
+        flagGrad.addColorStop(1, '#a67d58');
+        ctx.fillStyle = flagGrad;
+        ctx.fillRect(drawX, p.y, p.width, 16);
+
+        // Individual flagstone tiles with gaps
+        ctx.fillStyle = 'rgba(70, 40, 15, 0.45)';
+        for (let tx = drawX + 30; tx < drawX + p.width - 15; tx += 65) {
+          ctx.fillRect(tx, p.y, 3, 16);
+          // Moss tufts growing in paving joints
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.arc(tx + 1.5, p.y + 4, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(70, 40, 15, 0.45)';
+        }
+
+        // Crisp polished golden-limestone platform surface highlight (guarantees crystal-clear footing)
+        ctx.fillStyle = '#fefce8';
+        ctx.fillRect(drawX, p.y, p.width, 3);
+
+        // Embedded ancient runic floor motifs
+        for (let rx = drawX + 40; rx < drawX + p.width - 40; rx += 110) {
+          ctx.strokeStyle = 'rgba(217, 119, 6, 0.6)';
+          ctx.lineWidth = 1.4;
+          ctx.strokeRect(rx, p.y + 4, 10, 8);
+        }
+      } else if (biome === 'volcano') {
+        // --- VOLCANIC CRUST & INCANDESCENT BASALT GROUND ---
+        // 1. Scorched Obsidian & Dark Basalt Strata Body
+        const magmaGroundGrad = ctx.createLinearGradient(0, p.y + 14, 0, p.y + p.height);
+        magmaGroundGrad.addColorStop(0, '#262626');
+        magmaGroundGrad.addColorStop(0.18, '#171717');
+        magmaGroundGrad.addColorStop(0.65, '#0a0a0a');
+        magmaGroundGrad.addColorStop(1, '#050505');
+        ctx.fillStyle = magmaGroundGrad;
+        ctx.fillRect(drawX, p.y, p.width, p.height);
+
+        // Subterranean glowing magma fissures in deep rock
+        const deepMagmaGlow = ctx.createLinearGradient(0, p.y + 40, 0, p.y + 70);
+        deepMagmaGlow.addColorStop(0, '#991b1b');
+        deepMagmaGlow.addColorStop(0.5, '#ea580c');
+        deepMagmaGlow.addColorStop(1, '#991b1b');
+        ctx.fillStyle = deepMagmaGlow;
+        ctx.fillRect(drawX, p.y + 48, p.width, 3.5);
+        ctx.fillRect(drawX, p.y + 92, p.width, 2.5);
+
+        // 2. Chiseled Basalt Plate Top Layer
+        const basaltTopGrad = ctx.createLinearGradient(0, p.y, 0, p.y + 16);
+        basaltTopGrad.addColorStop(0, '#404040');
+        basaltTopGrad.addColorStop(0.4, '#262626');
+        basaltTopGrad.addColorStop(1, '#171717');
+        ctx.fillStyle = basaltTopGrad;
+        ctx.fillRect(drawX, p.y, p.width, 16);
+
+        // Glowing incandescent surface fissure cracks
+        for (let fx = drawX + 25; fx < drawX + p.width - 20; fx += 75) {
+          ctx.strokeStyle = '#ea580c';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(fx, p.y);
+          ctx.lineTo(fx + 6, p.y + 8);
+          ctx.lineTo(fx + 2, p.y + 16);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#fef08a';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(fx, p.y);
+          ctx.lineTo(fx + 6, p.y + 8);
+          ctx.stroke();
+        }
+
+        // High-contrast glowing ember platform surface rim highlight (guarantees crystal-clear footing)
+        const rimGrad = ctx.createLinearGradient(drawX, p.y, drawX + p.width, p.y);
+        rimGrad.addColorStop(0, '#fb923c');
+        rimGrad.addColorStop(0.5, '#fed7aa');
+        rimGrad.addColorStop(1, '#fb923c');
+        ctx.fillStyle = rimGrad;
+        ctx.fillRect(drawX, p.y, p.width, 3);
+
+        // Drifting ember sparkle dots on surface
+        for (let ex = drawX + 18; ex < drawX + p.width - 15; ex += 40) {
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(ex, p.y, 2, 2);
         }
       } else {
         // --- MEADOW (DEFAULT) LUSH GROUND ---
@@ -3256,6 +4624,103 @@ export function drawPlatforms(
 
         // Underside deep jungle shade
         ctx.fillStyle = 'rgba(10, 5, 2, 0.45)';
+        ctx.fillRect(drawX + 2, p.y + p.height - 2.5, p.width - 4, 2.5);
+      } else if (biome === 'temple') {
+        // --- ANCIENT TEMPLE CARVED LIMESTONE SLAB PLATFORM ---
+        const stoneGrad = ctx.createLinearGradient(0, p.y, 0, p.y + p.height);
+        stoneGrad.addColorStop(0, '#d4b18f');
+        stoneGrad.addColorStop(0.5, '#a67d58');
+        stoneGrad.addColorStop(1, '#7c5332');
+        ctx.fillStyle = stoneGrad;
+        drawRoundRect(ctx, drawX, p.y, p.width, p.height, 6);
+        ctx.fill();
+
+        // Architectural block relief seams
+        ctx.strokeStyle = 'rgba(70, 40, 15, 0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(drawX + p.width * 0.33, p.y + 5);
+        ctx.lineTo(drawX + p.width * 0.33, p.y + p.height - 2);
+        ctx.moveTo(drawX + p.width * 0.66, p.y + 5);
+        ctx.lineTo(drawX + p.width * 0.66, p.y + p.height - 2);
+        ctx.stroke();
+
+        // Hanging ancient ivy vines beneath platform
+        ctx.strokeStyle = '#15803d';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(drawX + p.width * 0.22, p.y + p.height);
+        ctx.quadraticCurveTo(drawX + p.width * 0.22 - 3, p.y + p.height + 7, drawX + p.width * 0.22 + 2, p.y + p.height + 13);
+        ctx.moveTo(drawX + p.width * 0.78, p.y + p.height);
+        ctx.quadraticCurveTo(drawX + p.width * 0.78 + 3, p.y + p.height + 7, drawX + p.width * 0.78 - 2, p.y + p.height + 11);
+        ctx.stroke();
+
+        // Polished Sunlit Limestone Top Trim
+        const topTrimGrad = ctx.createLinearGradient(0, p.y, 0, p.y + 7);
+        topTrimGrad.addColorStop(0, '#f5e4cf');
+        topTrimGrad.addColorStop(1, '#cda277');
+        ctx.fillStyle = topTrimGrad;
+        drawRoundRect(ctx, drawX, p.y, p.width, 7, [6, 6, 0, 0]);
+        ctx.fill();
+
+        // Crisp golden sunlit rim highlight (guarantees crystal-clear footing)
+        ctx.fillStyle = '#fefce8';
+        ctx.fillRect(drawX + 2, p.y, p.width - 4, 2);
+
+        // Underside shadow line
+        ctx.fillStyle = 'rgba(40, 20, 10, 0.4)';
+        ctx.fillRect(drawX + 2, p.y + p.height - 2.5, p.width - 4, 2.5);
+      } else if (biome === 'volcano') {
+        // --- VOLCANIC SUSPENDED BASALT CRAG WITH MAGMA CRACKS ---
+        const basaltGrad = ctx.createLinearGradient(0, p.y, 0, p.y + p.height);
+        basaltGrad.addColorStop(0, '#383838');
+        basaltGrad.addColorStop(0.5, '#262626');
+        basaltGrad.addColorStop(1, '#171717');
+        ctx.fillStyle = basaltGrad;
+        drawRoundRect(ctx, drawX, p.y, p.width, p.height, 6);
+        ctx.fill();
+
+        // Glowing incandescent fissures on platform side
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(drawX + p.width * 0.35, p.y + 4);
+        ctx.lineTo(drawX + p.width * 0.35 + 4, p.y + p.height * 0.6);
+        ctx.lineTo(drawX + p.width * 0.35 - 2, p.y + p.height - 2);
+        if (p.width > 70) {
+          ctx.moveTo(drawX + p.width * 0.7, p.y + 4);
+          ctx.lineTo(drawX + p.width * 0.7 - 4, p.y + p.height * 0.55);
+          ctx.lineTo(drawX + p.width * 0.7 + 2, p.y + p.height - 2);
+        }
+        ctx.stroke();
+
+        // Fiery glowing molten magma drops dangling below platform
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(drawX + p.width * 0.28, p.y + p.height + 4, 2.5, 0, Math.PI * 2);
+        ctx.arc(drawX + p.width * 0.72, p.y + p.height + 5, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(drawX + p.width * 0.28, p.y + p.height + 4, 1.2, 0, Math.PI * 2);
+        ctx.arc(drawX + p.width * 0.72, p.y + p.height + 5, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glowing Embers Top Trim
+        const topBasaltGrad = ctx.createLinearGradient(0, p.y, 0, p.y + 7);
+        topBasaltGrad.addColorStop(0, '#f97316');
+        topBasaltGrad.addColorStop(0.5, '#c2410c');
+        topBasaltGrad.addColorStop(1, '#431407');
+        ctx.fillStyle = topBasaltGrad;
+        drawRoundRect(ctx, drawX, p.y, p.width, 7, [6, 6, 0, 0]);
+        ctx.fill();
+
+        // Radiant white-hot magma rim highlight (guarantees crystal-clear footing)
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(drawX + 2, p.y, p.width - 4, 2);
+
+        // Underside soot shade
+        ctx.fillStyle = 'rgba(10, 5, 5, 0.6)';
         ctx.fillRect(drawX + 2, p.y + p.height - 2.5, p.width - 4, 2.5);
       } else {
         // --- MEADOW WOODEN PLANK WITH LUSH GRASS TRIM ---
@@ -4531,436 +5996,740 @@ export function drawNPCs(
 }
 
 /**
- * BOSS RENDERING - "Gorgonix the Mountain Behemoth"
-/**
- * REDESIGNED BOSS: "GorgonX"
- * Large, distinctive original cartoon villain creature:
- * - Articulated digitigrade cybernetic-beast legs with heavy steel talons & knee armor
- * - Broad muscular segmented torso with obsidian chitin plates and warning trim
- * - Two heavy muscular arms with clawed hands that swing aggressively during chase
- * - Row of 4 animated glowing dorsal spines along its arched spine
- * - Fierce sculpted head with snarling fangs, internal throat energy glow, and glowing slit predator eyes
- * - Swept-back jagged horns with golden rune bands
- * - Crown crystal weak spot mounted on an armored cranial bracket
- * - Contact foot shadows + ambient occlusion ground shadow
+ * BOSS RENDERING - "GorgonX"
+ * Massive, cohesive, fully articulated apex cyber-beast:
+ * - Seamless anatomical joints: ball-and-socket hips and shoulders, articulated knees and elbows, integrated ankles and wrists
+ * - Unbroken neck-to-torso cervical junction that flexes naturally without floating or shearing
+ * - Dorsal spines anchored directly onto the vertebral back ridge with molded base sockets
+ * - Heavy segmented obsidian chitin plates with contact shadows and rim highlights
+ * - Articulated digitigrade legs with steel talons and grounded contact shadows
+ * - Menacing snarling head with glowing amber predator eye, ivory fangs, internal throat fire, and swept-back horns
+ * - Armored cranial bracket securing the pulsing weak-spot power crystal
  */
-export function drawBoss(ctx: CanvasRenderingContext2D, camX: number, boss: Boss) {
+export function drawBoss(ctx: CanvasRenderingContext2D, camX: number, boss: Boss, camY: number = -30) {
   if (!boss.active || boss.state === 'escaped' || boss.state === 'defeated') return;
 
-  const drawX = boss.x - camX;
-  if (drawX < -180 || drawX > GAME_W + 180) return;
+  const rawDrawX = boss.x - camX;
+  if (rawDrawX < -300 || rawDrawX > GAME_W + 300) return;
 
   const time = performance.now() * 0.005;
-  const centerX = drawX + boss.width / 2;
-  const bottomY = boss.y + boss.height;
 
-  // Stride cycle for legs and arms
-  const strideCycle = Math.sin(time * 8);
-  const backLegAngle = strideCycle * 0.35;
-  const frontLegAngle = -strideCycle * 0.35;
-  const bodyBob = Math.abs(Math.sin(time * 8)) * 5;
+  // Proportional scale to ensure GorgonX fits completely within camera framing
+  // without any clipping from head to feet while preserving all body parts, joints, and silhouettes
+  const bossScale = 0.88;
 
-  // 1. Dual Soft Contact & Ambient Environmental Ground Shadows
+  // Safe horizontal viewport boundaries:
+  // With bossScale 0.88, GorgonX's body extends approx 36px left (horns/heels) and 34px right (claws/snout) from center.
+  // Clamping ensures the entire body remains 100% visible on canvas without edge clipping.
+  const minCenterX = 48;
+  const maxCenterX = GAME_W - 55;
+  const rawCenterX = rawDrawX + (boss.width * bossScale) / 2;
+  const centerX = Math.max(minCenterX, Math.min(maxCenterX, rawCenterX));
+
+  // Safe vertical viewport boundaries:
+  // GorgonX's crown crystal/horns extend ~42px above center, feet extend ~44px below center.
+  // Clamping prevents head from going behind the top HUD (y < 62) or feet from clipping canvas bottom (y > 530).
+  const rawCenterY = boss.y + (boss.height * bossScale) / 2;
+  const minCenterY = camY + 104; // Leaves clear headroom below top HUD pills (y: 16..54)
+  const maxCenterY = camY + 486; // Keeps feet visibly above canvas bottom (540)
+  const effectiveCenterY = Math.max(minCenterY, Math.min(maxCenterY, rawCenterY));
+
+  // Stride & locomotion cycle
+  const walkCycle = time * 7.5;
+  const strideSin = Math.sin(walkCycle);
+  const strideCos = Math.cos(walkCycle);
+  const bodyBob = Math.abs(strideSin) * 3.0;
+
+  // Joint swing angles (counter-balanced for powerful quadrupedal/bipedal gait)
+  const backLegSwing = strideSin * 0.38;
+  const frontLegSwing = -strideSin * 0.38;
+  const backArmSwing = frontLegSwing * 0.42;
+  const frontArmSwing = backLegSwing * 0.42;
+
+  // --- 1. AMBIENT & DYNAMIC FOOT GROUND CONTACT SHADOWS ---
+  const bottomY = effectiveCenterY + 40 * bossScale + bodyBob;
   ctx.save();
-  // Ambient body shadow
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.42)';
+  // Broad ambient creature shadow
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
   ctx.beginPath();
-  ctx.ellipse(centerX, bottomY, 52, 13, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX, bottomY, 48 * bossScale, 11 * bossScale, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Foot contact shadows (stomp impacts)
-  const leftFootX = centerX - 24 + backLegAngle * 28;
-  const rightFootX = centerX + 18 + frontLegAngle * 28;
-  const leftFootSquash = Math.max(0.6, 1 - Math.abs(strideCycle) * 0.4);
-  const rightFootSquash = Math.max(0.6, 1 - Math.abs(-strideCycle) * 0.4);
+  // Dynamic foot stomping shadows
+  const leftFootOffset = backLegSwing * 24 * bossScale;
+  const rightFootOffset = frontLegSwing * 24 * bossScale;
+  const leftContact = Math.max(0.4, 1 - Math.abs(strideSin) * 0.5);
+  const rightContact = Math.max(0.4, 1 - Math.abs(-strideSin) * 0.5);
 
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.7)';
   ctx.beginPath();
-  ctx.ellipse(leftFootX, bottomY, 18 * leftFootSquash, 6 * leftFootSquash, 0, 0, Math.PI * 2);
-  ctx.ellipse(rightFootX, bottomY, 18 * rightFootSquash, 6 * rightFootSquash, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX - 14 * bossScale + leftFootOffset, bottomY, 16 * bossScale * leftContact, 5.5 * bossScale * leftContact, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX + 14 * bossScale + rightFootOffset, bottomY, 16 * bossScale * rightContact, 5.5 * bossScale * rightContact, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
+  // --- 2. MAIN CREATURE TRANSFORMATION HIERARCHY ---
   ctx.save();
-  ctx.translate(centerX, boss.y + boss.height / 2 - bodyBob);
+  ctx.translate(centerX, effectiveCenterY - bodyBob);
+  ctx.scale(bossScale, bossScale);
 
   // Facing direction (GorgonX runs to the right pursuing Jiro)
   if (boss.vx < 0) ctx.scale(-1, 1);
 
   // Hit flash if damaged recently
   if (boss.hitCooldown > 0 && Math.floor(boss.hitCooldown * 20) % 2 === 0) {
-    ctx.filter = 'brightness(2.4) saturate(0.2)';
+    ctx.filter = 'brightness(2.2) saturate(0.2)';
   }
 
-  // --- BACK ARM (Swing behind body) ---
+  // --- LAYER 1: BACK ARM (Far Side, Articulated 3-Joint Hierarchy) ---
   ctx.save();
-  ctx.translate(-8, -4);
-  ctx.rotate(-frontLegAngle * 0.8 - 0.2);
-  // Upper arm
-  ctx.fillStyle = '#1e293b';
-  drawRoundRect(ctx, -7, -2, 14, 24, 6);
+  // Shoulder joint socket (anchored to upper-left thoracic region)
+  const backShoulderX = -10;
+  const backShoulderY = -12;
+  ctx.translate(backShoulderX, backShoulderY);
+  ctx.rotate(backArmSwing - 0.25);
+
+  // Deep socket shadow behind arm
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.6)';
+  ctx.beginPath();
+  ctx.arc(0, 0, 8, 0, Math.PI * 2);
   ctx.fill();
-  // Forearm & claw
-  ctx.fillStyle = '#334155';
-  drawRoundRect(ctx, -6, 18, 12, 20, 5);
+
+  // Upper arm (humerus)
+  ctx.fillStyle = '#162032';
+  drawRoundRect(ctx, -6, -2, 12, 20, 5);
   ctx.fill();
-  // Back claws
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // Elbow joint capsule
+  ctx.translate(0, 18);
+  const backElbowFlex = 0.35 + Math.max(0, -backArmSwing) * 0.4;
+  ctx.rotate(backElbowFlex);
+
+  // Elbow condyle & contact shadow
   ctx.fillStyle = '#0f172a';
   ctx.beginPath();
-  ctx.moveTo(-6, 36);
-  ctx.lineTo(-9, 44);
-  ctx.lineTo(-3, 38);
-  ctx.lineTo(0, 46);
-  ctx.lineTo(3, 38);
-  ctx.lineTo(6, 44);
-  ctx.lineTo(6, 36);
-  ctx.closePath();
+  ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
 
-  // --- BACK LEG (Digitigrade Stride) ---
-  ctx.save();
-  ctx.translate(-18, 16);
-  ctx.rotate(backLegAngle);
-  // Upper thigh plate
+  // Forearm & armored bracer
   ctx.fillStyle = '#1e293b';
-  drawRoundRect(ctx, -10, -6, 20, 24, 7);
+  drawRoundRect(ctx, -5, 0, 10, 18, 4);
   ctx.fill();
-  // Knee guard
-  ctx.fillStyle = '#dc2626';
-  drawRoundRect(ctx, 4, 10, 8, 8, 3);
-  ctx.fill();
-  // Lower leg / digitigrade shank
-  ctx.fillStyle = '#334155';
-  drawRoundRect(ctx, -7, 14, 15, 24, 6);
-  ctx.fill();
-  // Taloned boot
+
+  // Wrist joint & clawed hand
+  ctx.translate(0, 17);
   ctx.fillStyle = '#0f172a';
   ctx.beginPath();
-  ctx.moveTo(-8, 34);
-  ctx.lineTo(16, 34);
-  ctx.lineTo(20, 40);
-  ctx.lineTo(-10, 40);
-  ctx.closePath();
+  ctx.arc(0, 1, 4.5, 0, Math.PI * 2);
   ctx.fill();
-  // Claws
-  ctx.fillStyle = '#cbd5e1';
-  ctx.beginPath();
-  ctx.moveTo(14, 35);
-  ctx.lineTo(24, 40);
-  ctx.lineTo(15, 41);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
 
-  // --- 4 LUMINESCENT DORSAL SPINES ALONG BACK ---
-  const spineGlowPulse = Math.sin(time * 6) * 0.3 + 0.7;
-  for (let s = 0; s < 4; s++) {
-    const spX = -26 - s * 6;
-    const spY = -22 + s * 10;
-    const spLen = 16 - s * 2;
+  // Claws (3 sharp articulated talons)
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath();
+  ctx.moveTo(-5, 2);
+  ctx.lineTo(-8, 12);
+  ctx.lineTo(-2, 5);
+  ctx.lineTo(0, 14);
+  ctx.lineTo(2, 5);
+  ctx.lineTo(7, 12);
+  ctx.lineTo(4, 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore(); // End back arm
+
+  // --- LAYER 2: BACK LEG (Far Side, Articulated Digitigrade Hierarchy) ---
+  ctx.save();
+  // Hip socket (anchored firmly into pelvic cradle)
+  const backHipX = -12;
+  const backHipY = 10;
+  ctx.translate(backHipX, backHipY);
+  ctx.rotate(backLegSwing);
+
+  // Deep pelvic socket shadow
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
+  ctx.beginPath();
+  ctx.arc(0, 0, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Upper thigh (femur)
+  ctx.fillStyle = '#162032';
+  drawRoundRect(ctx, -8, -3, 16, 22, 6);
+  ctx.fill();
+
+  // Knee joint & cap
+  ctx.translate(0, 20);
+  const backKneeAngle = 0.38 - backLegSwing * 0.45;
+  ctx.rotate(backKneeAngle);
+
+  // Knee condyle hinge
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.fill();
+  // Armored knee-guard plate
+  ctx.fillStyle = '#b91c1c';
+  drawRoundRect(ctx, 1, -5, 7, 10, 2.5);
+  ctx.fill();
+
+  // Lower leg / shank (crus)
+  ctx.fillStyle = '#1e293b';
+  drawRoundRect(ctx, -5, 0, 11, 20, 4);
+  ctx.fill();
+
+  // Ankle joint & heel spur
+  ctx.translate(0, 19);
+  const backAnkleAngle = -backKneeAngle * 0.85 - 0.1;
+  ctx.rotate(backAnkleAngle);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(0, 0, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Taloned foot
+  ctx.fillStyle = '#0b1120';
+  ctx.beginPath();
+  ctx.moveTo(-8, -2);
+  ctx.lineTo(14, -2);
+  ctx.lineTo(18, 7);
+  ctx.lineTo(-9, 7);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ground talons
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath();
+  ctx.moveTo(12, 0);
+  ctx.lineTo(21, 6);
+  ctx.lineTo(13, 7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore(); // End back leg
+
+  // --- LAYER 3: DORSAL SPINES (Firmly Anchored to Computed Spine Arc) ---
+  // The spine arc is defined continuously along the creature's arched back:
+  const spineGlowPulse = Math.sin(time * 6) * 0.25 + 0.75;
+  const spineAnchors = [
+    { x: -8, y: -22, angle: -0.45, len: 20 },  // Cervical/Upper Thoracic
+    { x: -16, y: -16, angle: -0.85, len: 22 }, // Mid Thoracic Apex
+    { x: -22, y: -6, angle: -1.25, len: 19 },  // Lower Thoracic
+    { x: -24, y: 6, angle: -1.65, len: 15 }    // Lumbar
+  ];
+
+  for (let s = 0; s < spineAnchors.length; s++) {
+    const sp = spineAnchors[s];
     ctx.save();
-    ctx.translate(spX, spY);
-    ctx.rotate(-0.5 - s * 0.15);
-    // Spine base
+    ctx.translate(sp.x, sp.y);
+    ctx.rotate(sp.angle);
+
+    // Sculpted vertebrae base bracket (welded directly onto back carapace)
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.moveTo(-5, 0);
-    ctx.lineTo(0, -spLen);
-    ctx.lineTo(5, 0);
+    ctx.moveTo(-6, 2);
+    ctx.lineTo(-4, -6);
+    ctx.lineTo(4, -6);
+    ctx.lineTo(6, 2);
     ctx.closePath();
     ctx.fill();
-    // Glowing dorsal energy ridge
+
+    // Rivet detail on base plate
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.arc(-3, -2, 1.2, 0, Math.PI * 2);
+    ctx.arc(3, -2, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main jagged obsidian dorsal spine blade
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(-4, -5);
+    ctx.lineTo(0, -sp.len);
+    ctx.lineTo(4, -5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Channeled magma energy core along spine ridge
     ctx.fillStyle = `rgba(249, 115, 22, ${spineGlowPulse})`;
     ctx.beginPath();
-    ctx.moveTo(-2, 0);
-    ctx.lineTo(0, -spLen + 2);
-    ctx.lineTo(2, 0);
+    ctx.moveTo(-1.8, -5);
+    ctx.lineTo(0, -sp.len + 3);
+    ctx.lineTo(1.8, -5);
     ctx.closePath();
     ctx.fill();
+
+    // Hot inner filament
+    ctx.fillStyle = `rgba(254, 240, 138, ${spineGlowPulse * 0.8})`;
+    ctx.beginPath();
+    ctx.moveTo(-0.8, -4);
+    ctx.lineTo(0, -sp.len + 5);
+    ctx.lineTo(0.8, -4);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.restore();
   }
 
-  // --- MUSCULAR CHITINOUS TORSO (Distinct from head) ---
-  // Main back/torso plate
-  const torsoGrad = ctx.createLinearGradient(-30, -30, 20, 25);
+  // --- LAYER 4: MAIN TORSO & PELVIS (Segmented, Seamless Muscular Chitin) ---
+  // Main back thoracic carapace
+  const torsoGrad = ctx.createLinearGradient(-26, -26, 24, 26);
   torsoGrad.addColorStop(0, '#334155');
-  torsoGrad.addColorStop(0.5, '#1e293b');
+  torsoGrad.addColorStop(0.45, '#1e293b');
   torsoGrad.addColorStop(1, '#0f172a');
   ctx.fillStyle = torsoGrad;
-  drawRoundRect(ctx, -24, -20, 42, 44, 12);
-  ctx.fill();
 
-  // Segmented abdominal / chest plates
-  ctx.fillStyle = '#475569';
-  drawRoundRect(ctx, -14, -14, 26, 12, 4);
-  ctx.fill();
-  drawRoundRect(ctx, -12, 1, 24, 10, 3);
-  ctx.fill();
-
-  // Crimson armor trim accent lines
-  ctx.strokeStyle = '#ef4444';
-  ctx.lineWidth = 2.2;
+  // Solid anatomical torso contour
   ctx.beginPath();
-  ctx.moveTo(-16, -14);
-  ctx.lineTo(14, -14);
-  ctx.moveTo(-14, 0);
-  ctx.lineTo(12, 0);
+  ctx.moveTo(-4, -24);   // Neck/clavicle junction
+  ctx.lineTo(16, -20);   // Upper chest front
+  ctx.lineTo(18, -4);    // Lower ribcage front
+  ctx.lineTo(12, 16);    // Lower abdomen / groin
+  ctx.lineTo(-14, 18);   // Pelvic base
+  ctx.lineTo(-24, 8);    // Lumbar spine arch
+  ctx.lineTo(-22, -10);  // Mid-dorsal arch
+  ctx.lineTo(-10, -22);  // Upper-dorsal arch
+  ctx.closePath();
+  ctx.fill();
+
+  // Dark contact edge crease for muscle/armor definition
+  ctx.strokeStyle = '#020617';
+  ctx.lineWidth = 1.8;
   ctx.stroke();
 
-  // Armored utility waist belt with caution rivets
+  // Articulated sternum & pectoral armor plates
+  ctx.fillStyle = '#475569';
+  drawRoundRect(ctx, -6, -18, 22, 14, 4);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Segmented abdominal armor plates (3 interlocking flex tiers)
+  const absY = [-2, 5, 11];
+  const absW = [18, 16, 13];
+  for (let i = 0; i < 3; i++) {
+    // Contact shadow above each plate tier
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.45)';
+    ctx.fillRect(-4, absY[i] - 1, absW[i], 2);
+
+    ctx.fillStyle = i === 1 ? '#334155' : '#1e293b';
+    drawRoundRect(ctx, -4, absY[i], absW[i], 6, 2.5);
+    ctx.fill();
+  }
+
+  // Glowing crimson hazard trim conduits on chest
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-4, -14);
+  ctx.lineTo(12, -14);
+  ctx.moveTo(-2, -8);
+  ctx.lineTo(10, -8);
+  ctx.stroke();
+
+  // Internal thermal vent glow (pulsing engine core)
+  const coreGlow = Math.sin(time * 5) * 0.2 + 0.8;
+  ctx.fillStyle = `rgba(249, 115, 22, ${coreGlow * 0.85})`;
+  ctx.beginPath();
+  ctx.arc(3, -11, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Heavy armored utility / pelvic belt with brass warning rivets
   ctx.fillStyle = '#d97706';
-  drawRoundRect(ctx, -20, 14, 38, 7, 3);
+  drawRoundRect(ctx, -18, 13, 34, 6, 3);
   ctx.fill();
   ctx.fillStyle = '#fde047';
-  ctx.fillRect(-12, 15, 5, 5);
-  ctx.fillRect(2, 15, 5, 5);
+  ctx.fillRect(-11, 14, 4, 4);
+  ctx.fillRect(3, 14, 4, 4);
+  // Pelvic armor shadow
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.5)';
+  ctx.fillRect(-17, 18, 32, 2.5);
 
-  // --- FRONT LEG (Digitigrade Stride) ---
+  // --- LAYER 5: SEAMLESS ARTICULATED NECK & HEAD ---
+  // The neck is anchored securely into the thoracic chest and upper dorsal spine,
+  // then bends naturally toward the cranium so there is ZERO floating gap!
+  const headNod = Math.sin(walkCycle + 0.5) * 0.05; // Gentle predator nodding
+  const neckRootX = 4;
+  const neckRootY = -18;
+
+  // Solid cervical neck collar (drawn from torso up into skull base)
   ctx.save();
-  ctx.translate(6, 16);
-  ctx.rotate(frontLegAngle);
-  // Upper thigh plate
-  ctx.fillStyle = '#334155';
-  drawRoundRect(ctx, -10, -6, 22, 25, 7);
-  ctx.fill();
-  // Knee guard
-  ctx.fillStyle = '#ef4444';
-  drawRoundRect(ctx, 4, 10, 9, 9, 3);
-  ctx.fill();
-  // Lower leg
-  ctx.fillStyle = '#475569';
-  drawRoundRect(ctx, -7, 14, 16, 25, 6);
-  ctx.fill();
-  // Taloned boot
-  ctx.fillStyle = '#0f172a';
+  ctx.translate(neckRootX, neckRootY);
+  ctx.rotate(headNod);
+
+  // Cervical neck armor plates (muscular overlapping bands)
+  const neckGrad = ctx.createLinearGradient(-12, -6, 14, 8);
+  neckGrad.addColorStop(0, '#1e293b');
+  neckGrad.addColorStop(0.5, '#334155');
+  neckGrad.addColorStop(1, '#0f172a');
+  ctx.fillStyle = neckGrad;
   ctx.beginPath();
-  ctx.moveTo(-8, 34);
-  ctx.lineTo(18, 34);
-  ctx.lineTo(22, 40);
-  ctx.lineTo(-10, 40);
+  ctx.moveTo(-10, 4);   // Anchor to back thoracic arch
+  ctx.lineTo(8, 4);     // Anchor to clavicle front
+  ctx.lineTo(14, -8);   // Jaw throat junction
+  ctx.lineTo(-4, -12);  // Occipital skull junction
   ctx.closePath();
   ctx.fill();
-  // Sharp steel claws
-  ctx.fillStyle = '#f1f5f9';
+
+  // Throat tendon / cyber conduit
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 1.8;
   ctx.beginPath();
-  ctx.moveTo(16, 35);
-  ctx.lineTo(26, 40);
-  ctx.lineTo(17, 41);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
+  ctx.moveTo(6, 3);
+  ctx.lineTo(11, -6);
+  ctx.stroke();
 
-  // --- DISTINCT SCULPTED HEAD & NECK ---
-  ctx.save();
-  ctx.translate(14, -22);
-  const headBob = Math.sin(time * 8 + 0.5) * 3;
-  ctx.translate(0, headBob);
-
-  // Thick muscular neck collar
-  ctx.fillStyle = '#1e293b';
-  drawRoundRect(ctx, -22, 2, 24, 16, 6);
+  // Neck contact shadow crease under cranium
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.55)';
+  ctx.beginPath();
+  ctx.ellipse(3, -9, 8, 3, -0.2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Main Cranial Head Shell (Jagged dragon/gargoyle silhouette)
-  const headGrad = ctx.createLinearGradient(-15, -25, 25, 15);
+  // --- CRANIAL HEAD SHELL (Centered at skull pivot [2, -10]) ---
+  ctx.translate(2, -10);
+
+  // Main Cranial Shell (Jagged dragon/gargoyle obsidian predator silhouette)
+  const headGrad = ctx.createLinearGradient(-14, -20, 26, 12);
   headGrad.addColorStop(0, '#475569');
-  headGrad.addColorStop(0.6, '#1e293b');
+  headGrad.addColorStop(0.55, '#1e293b');
   headGrad.addColorStop(1, '#0f172a');
   ctx.fillStyle = headGrad;
   ctx.beginPath();
-  ctx.moveTo(-16, -18);
-  ctx.lineTo(10, -22);
-  ctx.lineTo(28, -8);
-  ctx.lineTo(26, 6);
-  ctx.lineTo(10, 14);
-  ctx.lineTo(-16, 10);
+  ctx.moveTo(-14, -14); // Occipital crest
+  ctx.lineTo(8, -18);   // Cranial brow apex
+  ctx.lineTo(26, -5);   // Snout / nasal bridge
+  ctx.lineTo(24, 7);    // Upper jaw tip
+  ctx.lineTo(8, 12);    // Jawline throat transition
+  ctx.lineTo(-12, 6);   // Mandible hinge
   ctx.closePath();
   ctx.fill();
 
-  // Swept-Back Obsidian Crown Horns (Major Silhouette Anchor!)
-  // Upper primary horn
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath();
-  ctx.moveTo(0, -18);
-  ctx.quadraticCurveTo(-14, -38, -34, -32);
-  ctx.quadraticCurveTo(-16, -24, -6, -14);
-  ctx.closePath();
-  ctx.fill();
-  // Golden rune binding ring on horn
-  ctx.strokeStyle = '#f59e0b';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(-12, -26);
-  ctx.lineTo(-16, -21);
+  // Contact bevel outline on skull
+  ctx.strokeStyle = '#020617';
+  ctx.lineWidth = 1.6;
   ctx.stroke();
 
-  // Lower secondary horn
-  ctx.fillStyle = '#1e293b';
+  // Swept-Back Obsidian Crown Horns (Anchored firmly into cranial sockets)
+  // Horn base socket plates
+  ctx.fillStyle = '#0f172a';
   ctx.beginPath();
-  ctx.moveTo(-10, -10);
-  ctx.quadraticCurveTo(-26, -20, -32, -14);
-  ctx.quadraticCurveTo(-18, -10, -8, -4);
+  ctx.ellipse(-4, -12, 6, 3, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Upper Primary Horn
+  ctx.fillStyle = '#0b1120';
+  ctx.beginPath();
+  ctx.moveTo(-2, -14);
+  ctx.quadraticCurveTo(-16, -34, -34, -28);
+  ctx.quadraticCurveTo(-18, -20, -8, -11);
   ctx.closePath();
   ctx.fill();
 
-  // Fiery Snarl Jaw with Ivory Fangs & Internal Throat Energy Glow
-  // Open mouth cavity
-  ctx.fillStyle = '#450a0a';
-  drawRoundRect(ctx, 8, 4, 18, 10, 3);
+  // Golden runic binding ferrule on horn root
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.moveTo(-12, -22);
+  ctx.lineTo(-16, -17);
+  ctx.stroke();
+
+  // Lower Secondary Horn
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  ctx.moveTo(-8, -7);
+  ctx.quadraticCurveTo(-24, -17, -29, -11);
+  ctx.quadraticCurveTo(-18, -7, -7, -2);
+  ctx.closePath();
   ctx.fill();
+
+  // Fiery Snarl Jaw with Internal Magma Glow & Ivory Fangs
+  // Open throat cavity
+  ctx.fillStyle = '#450a0a';
+  drawRoundRect(ctx, 6, 2, 17, 9, 3);
+  ctx.fill();
+
   // Internal plasma glow inside throat
-  const throatGrad = ctx.createRadialGradient(12, 9, 1, 12, 9, 8);
+  const throatGrad = ctx.createRadialGradient(10, 6, 1, 10, 6, 7);
   throatGrad.addColorStop(0, '#ffedd5');
   throatGrad.addColorStop(0.5, '#f97316');
   throatGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
   ctx.fillStyle = throatGrad;
   ctx.beginPath();
-  ctx.arc(12, 9, 7, 0, Math.PI * 2);
+  ctx.arc(10, 6, 6.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Upper fangs
+  // Interlocking Ivory Fangs
   ctx.fillStyle = '#f8fafc';
+  // Upper fangs
   ctx.beginPath();
-  ctx.moveTo(10, 4);
-  ctx.lineTo(13, 9);
-  ctx.lineTo(16, 4);
-  ctx.moveTo(18, 4);
-  ctx.lineTo(21, 10);
-  ctx.lineTo(24, 4);
+  ctx.moveTo(8, 2);
+  ctx.lineTo(11, 7);
+  ctx.lineTo(14, 2);
+  ctx.moveTo(16, 2);
+  ctx.lineTo(19, 8);
+  ctx.lineTo(22, 2);
   ctx.fill();
-  // Lower jaw fangs
+  // Lower fangs
   ctx.beginPath();
-  ctx.moveTo(12, 14);
-  ctx.lineTo(15, 9);
-  ctx.lineTo(18, 14);
-  ctx.moveTo(20, 14);
-  ctx.lineTo(23, 10);
-  ctx.lineTo(26, 14);
+  ctx.moveTo(10, 11);
+  ctx.lineTo(13, 6);
+  ctx.lineTo(16, 11);
+  ctx.moveTo(18, 11);
+  ctx.lineTo(21, 7);
+  ctx.lineTo(24, 11);
   ctx.fill();
 
-  // Heavy Brow Ridge & Expressive Predator Eyes
+  // Heavy Brow Ridge & Contact Shadow over Eye
   ctx.fillStyle = '#0f172a';
   ctx.beginPath();
-  ctx.moveTo(4, -12);
-  ctx.lineTo(24, -6);
-  ctx.lineTo(22, -2);
-  ctx.lineTo(2, -8);
+  ctx.moveTo(2, -10);
+  ctx.lineTo(21, -4);
+  ctx.lineTo(19, 0);
+  ctx.lineTo(1, -6);
   ctx.closePath();
   ctx.fill();
 
-  // Glowing Amber/Crimson Eye with Slit Pupil
+  // Glowing Amber Predator Eye with Slit Pupil
   ctx.save();
   ctx.shadowColor = '#f59e0b';
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = 9;
   ctx.fillStyle = '#f59e0b';
   ctx.beginPath();
-  ctx.ellipse(12, -4, 7, 4.5, 0.15, 0, Math.PI * 2);
+  ctx.ellipse(11, -3, 6.5, 4, 0.15, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
-  // Slit predatory pupil
+
+  // Slit pupil
   ctx.fillStyle = '#450a0a';
   ctx.beginPath();
-  ctx.ellipse(13, -4, 2, 4.2, 0.15, 0, Math.PI * 2);
+  ctx.ellipse(12, -3, 1.8, 3.8, 0.15, 0, Math.PI * 2);
   ctx.fill();
+
   // Specular gleam
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.arc(11, -6, 1.2, 0, Math.PI * 2);
+  ctx.arc(10, -5, 1.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // Cranial Energy Core / Weak Spot Mounted on Head Bracket
-  const crystalPulse = Math.sin(time * 9) * 3;
-  // Golden mounting brackets
-  ctx.fillStyle = '#d97706';
-  drawRoundRect(ctx, -4, -26, 16, 6, 2);
-  ctx.fill();
+  // Cranial Energy Core Weak-Spot (Stomp Target Mounted on Bolted Bracket)
+  const crystalPulse = Math.sin(time * 9) * 2.5;
 
-  // Pulsing energy aura
-  const gemGrad = ctx.createRadialGradient(4, -32, 2, 4, -32, 14 + crystalPulse);
+  // Heavy mechanical cranial mounting brackets
+  ctx.fillStyle = '#d97706';
+  drawRoundRect(ctx, -3, -22, 16, 5, 2);
+  ctx.fill();
+  ctx.fillStyle = '#fef08a';
+  ctx.fillRect(-1, -21, 3, 3);
+  ctx.fillRect(8, -21, 3, 3);
+
+  // Pulsing crystal energy aura
+  const gemGrad = ctx.createRadialGradient(5, -28, 2, 5, -28, 12 + crystalPulse);
   gemGrad.addColorStop(0, '#fef08a');
   gemGrad.addColorStop(0.4, '#f97316');
   gemGrad.addColorStop(0.8, '#ef4444');
   gemGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
   ctx.fillStyle = gemGrad;
   ctx.beginPath();
-  ctx.arc(4, -32, 14 + crystalPulse, 0, Math.PI * 2);
+  ctx.arc(5, -28, 12 + crystalPulse, 0, Math.PI * 2);
   ctx.fill();
 
-  // Crystalline diamond core (stomp target)
+  // Crystalline diamond core
   ctx.fillStyle = '#f43f5e';
   ctx.beginPath();
-  ctx.moveTo(4, -40);
-  ctx.lineTo(12, -32);
-  ctx.lineTo(4, -24);
-  ctx.lineTo(-4, -32);
+  ctx.moveTo(5, -36);
+  ctx.lineTo(12, -28);
+  ctx.lineTo(5, -20);
+  ctx.lineTo(-2, -28);
   ctx.closePath();
   ctx.fill();
+
+  // Crystal facet highlight
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.moveTo(4, -38);
-  ctx.lineTo(8, -32);
-  ctx.lineTo(4, -29);
-  ctx.lineTo(0, -32);
+  ctx.moveTo(5, -34);
+  ctx.lineTo(9, -28);
+  ctx.lineTo(5, -25);
+  ctx.lineTo(2, -28);
   ctx.closePath();
   ctx.fill();
 
-  ctx.restore(); // End head transform
+  ctx.restore(); // End neck & head
 
-  // --- FRONT ARM (Clawed brawny arm pumping forward) ---
+  // --- LAYER 6: FRONT LEG (Near Side, Articulated Digitigrade Hierarchy) ---
   ctx.save();
-  ctx.translate(6, -2);
-  ctx.rotate(frontLegAngle * 0.9 + 0.3);
-  // Spiked shoulder pauldron
+  // Front Hip socket (anchored firmly into pelvic cradle)
+  const frontHipX = 6;
+  const frontHipY = 10;
+  ctx.translate(frontHipX, frontHipY);
+  ctx.rotate(frontLegSwing);
+
+  // Heavy hip joint casing with rim highlight
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  ctx.arc(0, 0, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Upper thigh plate (muscular, highlighted)
+  const thighGrad = ctx.createLinearGradient(-10, 0, 12, 22);
+  thighGrad.addColorStop(0, '#475569');
+  thighGrad.addColorStop(0.6, '#334155');
+  thighGrad.addColorStop(1, '#1e293b');
+  ctx.fillStyle = thighGrad;
+  drawRoundRect(ctx, -9, -3, 18, 23, 7);
+  ctx.fill();
+
+  // Crimson armor accent stripe on thigh
+  ctx.fillStyle = '#ef4444';
+  drawRoundRect(ctx, 3, 2, 4, 14, 2);
+  ctx.fill();
+
+  // Knee joint & articulated armor guard
+  ctx.translate(0, 21);
+  const frontKneeAngle = 0.38 - frontLegSwing * 0.45;
+  ctx.rotate(frontKneeAngle);
+
+  // Circular knee condyle hinge
   ctx.fillStyle = '#0f172a';
-  drawRoundRect(ctx, -10, -8, 20, 16, 5);
+  ctx.beginPath();
+  ctx.arc(0, 0, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Heavy chevron knee-guard plate
+  ctx.fillStyle = '#dc2626';
+  drawRoundRect(ctx, 2, -6, 9, 11, 3);
+  ctx.fill();
+  ctx.fillStyle = '#fca5a5';
+  ctx.fillRect(4, -4, 2, 7);
+
+  // Lower leg / digitigrade shank (crus)
+  ctx.fillStyle = '#334155';
+  drawRoundRect(ctx, -6, 0, 12, 21, 5);
+  ctx.fill();
+
+  // Ankle joint & heel spur
+  ctx.translate(0, 20);
+  const frontAnkleAngle = -frontKneeAngle * 0.85 - 0.1;
+  ctx.rotate(frontAnkleAngle);
+
+  // Ankle hinge socket
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Heavy taloned boot
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.moveTo(-9, -2);
+  ctx.lineTo(16, -2);
+  ctx.lineTo(21, 8);
+  ctx.lineTo(-10, 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Polished steel talons
+  ctx.fillStyle = '#f1f5f9';
+  ctx.beginPath();
+  ctx.moveTo(14, 0);
+  ctx.lineTo(25, 7);
+  ctx.lineTo(15, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore(); // End front leg
+
+  // --- LAYER 7: FRONT ARM (Near Side, Articulated 3-Joint Hierarchy) ---
+  ctx.save();
+  // Shoulder joint socket (anchored to clavicle / upper chest)
+  const frontShoulderX = 8;
+  const frontShoulderY = -10;
+  ctx.translate(frontShoulderX, frontShoulderY);
+  ctx.rotate(frontArmSwing + 0.2);
+
+  // Spiked pauldron / shoulder plate overlapping chest
+  ctx.fillStyle = '#0f172a';
+  drawRoundRect(ctx, -11, -9, 22, 17, 6);
+  ctx.fill();
+  // Red warning chevron on shoulder
+  ctx.fillStyle = '#ef4444';
+  drawRoundRect(ctx, -9, -7, 18, 5, 2.5);
+  ctx.fill();
+
+  // Contact shadow under pauldron
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.5)';
+  ctx.fillRect(-7, 6, 14, 3);
+
+  // Upper arm (bicep)
+  ctx.fillStyle = '#334155';
+  drawRoundRect(ctx, -7, 6, 14, 18, 5);
+  ctx.fill();
+
+  // Elbow joint capsule & crease
+  ctx.translate(0, 22);
+  const frontElbowFlex = 0.35 + Math.max(0, -frontArmSwing) * 0.4;
+  ctx.rotate(frontElbowFlex);
+
+  // Circular elbow condyle
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Armored bracer / forearm
+  ctx.fillStyle = '#1e293b';
+  drawRoundRect(ctx, -6, 0, 13, 20, 5);
   ctx.fill();
   ctx.fillStyle = '#ef4444';
-  drawRoundRect(ctx, -8, -6, 16, 5, 2);
+  ctx.fillRect(-2, 3, 4, 12);
+
+  // Wrist joint & clawed hand
+  ctx.translate(0, 19);
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(0, 2, 5.5, 0, Math.PI * 2);
   ctx.fill();
-  // Bicep
-  ctx.fillStyle = '#334155';
-  drawRoundRect(ctx, -6, 6, 13, 16, 4);
-  ctx.fill();
-  // Armored bracer
-  ctx.fillStyle = '#1e293b';
-  drawRoundRect(ctx, -8, 18, 16, 18, 5);
-  ctx.fill();
-  // Sharp claws slashing forward
+
+  // Heavy steel claws slashing forward
   ctx.fillStyle = '#f8fafc';
   ctx.beginPath();
-  ctx.moveTo(-6, 34);
-  ctx.lineTo(-9, 44);
-  ctx.lineTo(-2, 36);
-  ctx.lineTo(2, 47);
-  ctx.lineTo(6, 36);
-  ctx.lineTo(11, 44);
-  ctx.lineTo(8, 34);
+  ctx.moveTo(-6, 2);
+  ctx.lineTo(-10, 14);
+  ctx.lineTo(-2, 5);
+  ctx.lineTo(2, 16);
+  ctx.lineTo(6, 5);
+  ctx.lineTo(12, 14);
+  ctx.lineTo(8, 2);
   ctx.closePath();
   ctx.fill();
-  ctx.restore();
 
-  ctx.restore(); // End main boss transform
+  ctx.restore(); // End front arm
 
-  // --- NAME "GorgonX" & HEALTH OVERLAY ABOVE SPRITE ---
+  ctx.restore(); // End main creature transform
+
+  // --- 3. NAME "GorgonX" & HEALTH OVERLAY ABOVE SPRITE ---
   ctx.save();
   ctx.textAlign = 'center';
   ctx.shadowColor = 'rgba(0,0,0,0.85)';
   ctx.shadowBlur = 6;
 
-  // Villain Name Banner
-  ctx.font = '900 15px system-ui, -apple-system, sans-serif';
+  // Villain Name Banner (tightly framed above head crystal, never overlapping HUD)
+  const tagY = effectiveCenterY - bodyBob - 44 * bossScale;
+  ctx.font = '900 13px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#f87171';
-  ctx.fillText('GorgonX', centerX, boss.y - 36);
+  ctx.fillText('GorgonX', centerX, tagY - 14);
 
   // Health Crystals (3 Hearts/Crystals)
-  const barW = 72;
+  const barW = 60;
   const startHpx = centerX - barW / 2;
   for (let i = 0; i < boss.maxHealth; i++) {
-    const hx = startHpx + i * 26;
-    ctx.font = '16px sans-serif';
-    ctx.fillText(i < boss.health ? '💎' : '⚪', hx + 10, boss.y - 16);
+    const hx = startHpx + i * 22;
+    ctx.font = '14px sans-serif';
+    ctx.fillText(i < boss.health ? '💎' : '⚪', hx + 8, tagY);
   }
   ctx.restore();
 }
@@ -5699,7 +7468,9 @@ export function drawHUD(
     coastal: { icon: '🌊', name: 'Ocean', color: '#38bdf8' },
     cave: { icon: '💎', name: 'Cave', color: '#c084fc' },
     mountain: { icon: '⛰️', name: 'Mountain', color: '#e2e8f0' },
-    forest: { icon: '🌲', name: 'Forest', color: '#22c55e' }
+    forest: { icon: '🌲', name: 'Forest', color: '#22c55e' },
+    temple: { icon: '🏛️', name: 'Temple', color: '#f59e0b' },
+    volcano: { icon: '🌋', name: 'Volcano', color: '#ef4444' }
   };
   const bInfo = biomeMeta[bKey] || biomeMeta.meadow;
   drawPill(GAME_W - padding - 245, topY, 122, 38, bInfo.icon, 'LOCATION', bInfo.name);

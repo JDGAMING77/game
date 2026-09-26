@@ -1,6 +1,6 @@
 export type GameState = 'start' | 'controls' | 'playing' | 'paused' | 'gameover' | 'victory' | 'shop' | 'settings';
 
-export type BiomeType = 'meadow' | 'coastal' | 'cave' | 'mountain' | 'forest';
+export type BiomeType = 'meadow' | 'coastal' | 'cave' | 'mountain' | 'forest' | 'temple' | 'volcano';
 
 export interface PlayerUpgrades {
   speed: number;

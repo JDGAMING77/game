@@ -20,34 +20,51 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ isMuted }) => {
     if (!container) return;
 
     const updateDimensions = () => {
-      const padding = window.innerWidth < 640 ? 12 : 24;
-      const availableW = Math.max(100, container.clientWidth - padding);
-      const availableH = Math.max(100, container.clientHeight - padding);
+      const containerEl = containerRef.current;
+      if (!containerEl) return;
 
-      const aspect = 16 / 9;
+      const availableW = containerEl.clientWidth;
+      const availableH = containerEl.clientHeight;
+
+      if (availableW <= 0 || availableH <= 0) return;
+
+      // Preserve native 16:9 platformer aspect ratio without stretching or distortion
+      const targetAspect = GAME_W / GAME_H; // 960 / 540 = 16 / 9
       let w = availableW;
-      let h = availableW / aspect;
+      let h = availableW / targetAspect;
 
       if (h > availableH) {
         h = availableH;
-        w = availableH * aspect;
+        w = availableH * targetAspect;
       }
-
-      // Max cap at 1280 x 720
-      w = Math.min(w, 1280);
-      h = Math.min(h, 720);
 
       setAspectDimensions({
         width: Math.floor(w),
         height: Math.floor(h),
       });
+
+      if (engineRef.current) {
+        engineRef.current.updateDpr();
+      }
     };
 
     updateDimensions();
+
     const observer = new ResizeObserver(updateDimensions);
     observer.observe(container);
 
-    return () => observer.disconnect();
+    window.addEventListener('resize', updateDimensions);
+    window.addEventListener('orientationchange', updateDimensions);
+    document.addEventListener('fullscreenchange', updateDimensions);
+    document.addEventListener('webkitfullscreenchange', updateDimensions);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateDimensions);
+      window.removeEventListener('orientationchange', updateDimensions);
+      document.removeEventListener('fullscreenchange', updateDimensions);
+      document.removeEventListener('webkitfullscreenchange', updateDimensions);
+    };
   }, []);
 
   useEffect(() => {
@@ -96,6 +113,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ isMuted }) => {
         if (engine.state === 'gameover' || engine.state === 'victory') {
           engine.resetGame();
           engine.state = 'playing';
+        }
+      }
+
+      if (code === 'KeyB') {
+        if (engine.state === 'playing') {
+          engine.triggerBossEncounter();
         }
       }
 
@@ -204,38 +227,40 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ isMuted }) => {
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 w-full h-full flex items-center justify-center p-2 sm:p-4 bg-slate-950 overflow-hidden"
+      className="relative w-full h-full flex-1 flex items-center justify-center bg-slate-950 overflow-hidden p-0 m-0 select-none touch-none"
     >
       <div
-        className="relative bg-sky-400 rounded-xl overflow-hidden shadow-2xl border border-slate-800 flex items-center justify-center select-none"
+        className="relative bg-slate-950 overflow-hidden shadow-2xl flex items-center justify-center select-none"
         style={
           aspectDimensions
             ? { width: `${aspectDimensions.width}px`, height: `${aspectDimensions.height}px` }
-            : { width: '100%', maxWidth: '1280px', maxHeight: '720px', aspectRatio: '16/9' }
+            : { width: '100%', height: '100%', maxWidth: '100vw', maxHeight: '100vh', aspectRatio: '16/9' }
         }
       >
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
           onTouchEnd={handleCanvasTouchEnd}
-          className="w-full h-full block cursor-pointer select-none"
+          className="w-full h-full block cursor-pointer select-none touch-none"
         />
 
         {/* On-screen controls for touchscreen devices */}
         {isTouchDevice && (
-          <div className="absolute bottom-4 left-0 right-0 px-6 flex justify-between pointer-events-none select-none z-20">
-            <div className="flex gap-4 pointer-events-auto">
+          <div className="absolute bottom-2 sm:bottom-4 left-0 right-0 px-3 sm:px-6 flex justify-between pointer-events-none select-none z-20">
+            <div className="flex gap-2 sm:gap-4 pointer-events-auto">
               <button
                 onTouchStart={handleTouchLeftStart}
                 onTouchEnd={handleTouchLeftEnd}
-                className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-md border-2 border-white/60 text-white font-bold text-2xl flex items-center justify-center active:scale-90 active:bg-white/60 transition"
+                aria-label="Move Left"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900/60 backdrop-blur-md border-2 border-white/50 text-white font-bold text-xl sm:text-2xl flex items-center justify-center active:scale-90 active:bg-cyan-500/60 transition shadow-lg touch-none select-none cursor-pointer"
               >
                 ◀
               </button>
               <button
                 onTouchStart={handleTouchRightStart}
                 onTouchEnd={handleTouchRightEnd}
-                className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-md border-2 border-white/60 text-white font-bold text-2xl flex items-center justify-center active:scale-90 active:bg-white/60 transition"
+                aria-label="Move Right"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900/60 backdrop-blur-md border-2 border-white/50 text-white font-bold text-xl sm:text-2xl flex items-center justify-center active:scale-90 active:bg-cyan-500/60 transition shadow-lg touch-none select-none cursor-pointer"
               >
                 ▶
               </button>
@@ -244,7 +269,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ isMuted }) => {
               <button
                 onTouchStart={handleTouchJumpStart}
                 onTouchEnd={handleTouchJumpEnd}
-                className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-md border-2 border-white/60 text-white font-bold text-2xl flex items-center justify-center active:scale-90 active:bg-white/60 transition"
+                aria-label="Jump"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900/60 backdrop-blur-md border-2 border-white/50 text-white font-bold text-xl sm:text-2xl flex items-center justify-center active:scale-90 active:bg-orange-500/60 transition shadow-lg touch-none select-none cursor-pointer"
               >
                 ▲
               </button>

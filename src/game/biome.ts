@@ -60,29 +60,51 @@ function createPRNG(seed: number) {
   };
 }
 
-const ALL_OTHER_BIOMES: BiomeType[] = ['coastal', 'mountain', 'cave', 'forest'];
+const ALL_OTHER_BIOMES: BiomeType[] = ['coastal', 'mountain', 'cave', 'forest', 'temple', 'volcano'];
 
 const TRANSITION_TITLES: Record<string, string> = {
   'meadow->coastal': 'Approaching the Ocean',
   'meadow->mountain': 'Ascending Mountain Slopes',
   'meadow->forest': 'Entering the Deep Forest',
   'meadow->cave': 'Approaching the Caverns',
+  'meadow->temple': 'Approaching Ancient Ruins',
+  'meadow->volcano': 'Approaching Volcanic Peaks',
   'coastal->mountain': 'Climbing Coastal Cliffs',
   'coastal->cave': 'Entering Sea Caves',
   'coastal->forest': 'Entering Coastal Jungle',
   'coastal->meadow': 'Returning to the Meadows',
+  'coastal->temple': 'Ascending to Sunken Temple',
+  'coastal->volcano': 'Approaching Volcanic Shore',
   'mountain->forest': 'Descending to the Forest Canopy',
   'mountain->cave': 'Entering Mountain Chasm',
   'mountain->coastal': 'Descending towards the Ocean',
   'mountain->meadow': 'Descending to Sunlit Meadows',
+  'mountain->temple': 'Discovering Mountain Sanctuary',
+  'mountain->volcano': 'Approaching Active Caldera',
   'forest->cave': 'Entering Hollow Cave Pass',
   'forest->mountain': 'Ascending into the Highlands',
   'forest->coastal': 'Reaching the Coastal Lagoon',
   'forest->meadow': 'Clearing into Open Meadows',
+  'forest->temple': 'Uncovering Overgrown Ruins',
+  'forest->volcano': 'Approaching Basalt Badlands',
   'cave->mountain': 'Emerging onto Mountain Crags',
   'cave->forest': 'Emerging into Canopy Jungle',
   'cave->coastal': 'Emerging onto Ocean Shoreline',
-  'cave->meadow': 'Ascending to Sunlit Meadows'
+  'cave->meadow': 'Ascending to Sunlit Meadows',
+  'cave->temple': 'Emerging into Temple Vaults',
+  'cave->volcano': 'Emerging near Molten Chasm',
+  'temple->volcano': 'Approaching Caldera Crags',
+  'temple->meadow': 'Exiting Ruins to Open Meadows',
+  'temple->mountain': 'Ascending High Mountain Passes',
+  'temple->cave': 'Descending into Temple Catacombs',
+  'temple->forest': 'Entering the Sacred Grove',
+  'temple->coastal': 'Descending to Coastal Shore',
+  'volcano->temple': 'Reaching Ancient Sanctuary',
+  'volcano->meadow': 'Leaving Caldera for Green Meadows',
+  'volcano->mountain': 'Climbing Cool Mountain Ridges',
+  'volcano->cave': 'Descending into Volcanic Caverns',
+  'volcano->forest': 'Descending to Deep Forest',
+  'volcano->coastal': 'Cooling into Ocean Waters'
 };
 
 let currentRunSegments: BiomeSegment[] = [];
@@ -118,7 +140,7 @@ export function initRunBiomes(seed: number = 1337): void {
   currentType = nextType;
 
   // Generate 60 diverse segments (over 40,000 meters of continuous varied exploration)
-  const allBiomes: BiomeType[] = ['meadow', 'coastal', 'mountain', 'cave', 'forest'];
+  const allBiomes: BiomeType[] = ['meadow', 'coastal', 'mountain', 'cave', 'forest', 'temple', 'volcano'];
 
   for (let i = 1; i < 60; i++) {
     // Choose next biome different from current

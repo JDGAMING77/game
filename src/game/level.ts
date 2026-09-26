@@ -80,7 +80,7 @@ function addGround(world: WorldData, x: number, w: number, y = 470, h = 180, exp
         x: x + 60 + i * 240 + (Math.random() - 0.5) * 40,
         y: y,
         height: 65 + Math.random() * 45,
-        type: Math.floor(Math.random() * 2)
+        type: Math.floor(Math.random() * 6)
       });
     }
   }
@@ -523,6 +523,12 @@ export function generateNextChunk(world: WorldData, currentDistance: number) {
   } else if (blend.primary === 'cave') {
     generateCaveChunk(world, startX, tier, patternIndex);
     return;
+  } else if (blend.primary === 'temple') {
+    generateTempleChunk(world, startX, tier, patternIndex);
+    return;
+  } else if (blend.primary === 'volcano') {
+    generateVolcanoChunk(world, startX, tier, patternIndex);
+    return;
   }
 
   switch (tier) {
@@ -560,113 +566,220 @@ function generateTransitionChunk(
   const nxtB = blend.next;
   const len = 780;
 
-  if (curB === 'meadow' && nxtB === 'coastal') {
-    // ----------------------------------------------------
-    // MEADOW -> COASTAL TRANSITION
-    // Progressive travel: Meadow Grass -> Small coastal elements -> Distant ocean & rocks -> Shoreline -> Full Ocean
-    // ----------------------------------------------------
-    if (f < 0.30) {
-      // Stage 1: Meadow with small coastal elements (coastal grass, drift logs, shore pebbles)
-      addGround(world, startX, len, 470, 180, 'meadow');
-      addPlatform(world, startX + 160, 380, 120, 22, false, 0, 'meadow');
-      addPlatform(world, startX + 370, 310, 125, 22, false, 0, 'meadow');
-      addPlatform(world, startX + 570, 370, 115, 22, false, 0, 'coastal');
-    } else if (f < 0.65) {
-      // Stage 2 & 3: Distant blue ocean visible, coastal rocks, tidal pools & shoreline
-      const splitX = Math.floor(len * (1 - (f - 0.3) / 0.35));
-      const sX = Math.max(80, Math.min(len - 80, splitX));
-      addGround(world, startX, sX, 470, 180, 'meadow');
-      addGround(world, startX + sX, len - sX, 470, 180, 'coastal');
+  if (f < 0.30) {
+    // Stage 1: Mostly current biome ground with introducing next biome platforms
+    addGround(world, startX, len, 470, 180, curB);
+    addPlatform(world, startX + 160, 375, 120, 22, false, 0, curB);
+    addPlatform(world, startX + 370, 305, 125, 22, false, 0, nxtB);
+    addPlatform(world, startX + 570, 365, 115, 22, false, 0, nxtB);
+  } else if (f < 0.65) {
+    // Stage 2 & 3: Split ground transition where terrain switches from curB to nxtB
+    const splitX = Math.floor(len * (1 - (f - 0.3) / 0.35));
+    const sX = Math.max(80, Math.min(len - 80, splitX));
+    addGround(world, startX, sX, 470, 180, curB);
+    addGround(world, startX + sX, len - sX, 470, 180, nxtB);
 
-      // Weathered driftwood logs and coastal stepping stones
-      addPlatform(world, startX + 160, 380, 120, 22, false, 0, 'coastal');
-      addPlatform(world, startX + 360, 310, 130, 22, false, 0, 'coastal');
-      addPlatform(world, startX + 560, 370, 120, 22, false, 0, 'coastal');
-    } else {
-      // Stage 4: Shoreline leading into full ocean environment
-      addGround(world, startX, len, 470, 180, 'coastal');
-      addPlatform(world, startX + 170, 370, 125, 22, false, 0, 'coastal');
-      addPlatform(world, startX + 380, 300, 130, 22, false, 0, 'coastal');
-      addPlatform(world, startX + 580, 360, 120, 22, false, 0, 'coastal');
+    addPlatform(world, startX + 160, 370, 120, 22, false, 0, nxtB);
+    addPlatform(world, startX + 370, 300, 130, 22, false, 0, nxtB);
+    addPlatform(world, startX + 570, 360, 120, 22, false, 0, nxtB);
+  } else {
+    // Stage 4: Leading fully into the next biome
+    addGround(world, startX, len, 470, 180, nxtB);
+    addPlatform(world, startX + 170, 370, 125, 22, false, 0, nxtB);
+    addPlatform(world, startX + 380, 295, 130, 22, false, 0, nxtB);
+    addPlatform(world, startX + 580, 360, 120, 22, false, 0, nxtB);
+  }
+
+  addCoinRow(world, startX + 80, 430, 3);
+  addCoinArc(world, startX + 180, 335, 5, 170, 45);
+  addCoinRow(world, startX + 390, 250, 4);
+
+  const enemyType = (nxtB === 'cave' || nxtB === 'volcano') ? 'crawler' : 'sprout';
+  addEnemy(world, enemyType, startX + 280, 442, startX + 80, startX + 680, 1.3);
+  const powerUpType = (nxtB === 'temple') ? 'magnet' : (nxtB === 'volcano' ? 'shield' : 'speed');
+  spawnSafeRandomPowerUp(world, startX, startX + len, powerUpType);
+  world.nextGenX = startX + len;
+}
+
+// ----------------------------------------------------
+// ANCIENT TEMPLE RUINS LOCATION GENERATOR
+// Weathered colonnades, carved ashlar platforms, hanging vines, rune monoliths
+// ----------------------------------------------------
+function generateTempleChunk(world: WorldData, startX: number, tier: number, pattern: number) {
+  const templeBiome: BiomeType = 'temple';
+
+  if (pattern === 0) {
+    // Grand Colonnade Procession - Continuous carved flagstone ground with stepped altar ledges
+    const len = 780 + tier * 40;
+    addGround(world, startX, len, 470, 180, templeBiome);
+    addPlatform(world, startX + 160, 370, 120, 22, false, 0, templeBiome);
+    addPlatform(world, startX + 360, 290, 130, 22, false, 0, templeBiome);
+    addPlatform(world, startX + 560, 360, 120, 22, false, 0, templeBiome);
+
+    addCoinRow(world, startX + 70, 430, 3);
+    addCoinArc(world, startX + 180, 320, 5, 170, 45);
+    addCoinRow(world, startX + 380, 240, 4);
+
+    addEnemy(world, 'sprout', startX + 280, 442, startX + 80, startX + 680, 1.3);
+    if (tier >= 2) {
+      addEnemy(world, 'bumble', startX + 460, 210, startX + 320, startX + 620, 1.5);
     }
+    spawnSafeRandomPowerUp(world, startX, startX + len, 'magnet');
 
-    addCoinRow(world, startX + 80, 430, 3);
-    addCoinArc(world, startX + 180, 340, 5, 170, 45);
-    addCoinRow(world, startX + 390, 260, 4);
-
-    addEnemy(world, 'sprout', startX + 280, 442, startX + 80, startX + 680, 1.2);
-    spawnSafeRandomPowerUp(world, startX, startX + len, 'speed');
     world.nextGenX = startX + len;
-  } else if (curB === 'coastal' && nxtB === 'cave') {
-    // ----------------------------------------------------
-    // COASTAL -> CAVE TRANSITION
-    // Progressive travel: Sandy Coast -> Rocky Coastline -> Larger Rock Formations -> Visible Cave Entrance -> Darker Rock Walls -> Crystals
-    // ----------------------------------------------------
-    if (f < 0.30) {
-      // Stage 1: Rocky coastline (sea-cliff boulders replacing sand dunes)
-      addGround(world, startX, len, 470, 180, 'coastal');
-      addPlatform(world, startX + 160, 370, 120, 22, false, 0, 'coastal');
-      addPlatform(world, startX + 370, 310, 125, 22, false, 0, 'cave');
-      addPlatform(world, startX + 570, 360, 115, 22, false, 0, 'cave');
-    } else if (f < 0.65) {
-      // Stage 2: Larger rock formations, basalt monoliths & visible cave entrance approaching
-      const splitX = Math.floor(len * (1 - (f - 0.3) / 0.35));
-      const sX = Math.max(80, Math.min(len - 80, splitX));
-      addGround(world, startX, sX, 470, 180, 'coastal');
-      addGround(world, startX + sX, len - sX, 470, 180, 'cave');
+  } else if (pattern === 1) {
+    // Sunken Sanctuary Chasm (reachable gap 160-220px) with floating carved frieze slab
+    const g1 = 380;
+    const gap = Math.min(220, 160 + tier * 18);
+    const g2 = 420;
+    addGround(world, startX, g1, 470, 180, templeBiome);
+    addPlatform(world, startX + 160, 360, 110, 22, false, 0, templeBiome);
 
-      // Chiseled basalt crystal slabs
-      addPlatform(world, startX + 170, 370, 125, 22, false, 0, 'cave');
-      addPlatform(world, startX + 370, 300, 130, 22, false, 0, 'cave');
-      addPlatform(world, startX + 570, 360, 120, 22, false, 0, 'cave');
-    } else {
-      // Stage 3 & 4: Inside visible cave entrance, darker rock walls, crystals into full cave
-      addGround(world, startX, len, 470, 180, 'cave');
-      addPlatform(world, startX + 160, 370, 125, 22, false, 0, 'cave');
-      addPlatform(world, startX + 370, 290, 130, 22, false, 0, 'cave');
-      addPlatform(world, startX + 570, 360, 120, 22, false, 0, 'cave');
+    // Suspended temple frieze platform over the sunken courtyard
+    addPlatform(world, startX + g1 + 20, 330, gap - 40 > 70 ? gap - 40 : 80, 22, false, 0, templeBiome);
+
+    addGround(world, startX + g1 + gap, g2, 470, 180, templeBiome);
+    addPlatform(world, startX + g1 + gap + 160, 370, 120, 22, false, 0, templeBiome);
+
+    addCoinArc(world, startX + g1 - 20, 420, 5, gap + 40, 50);
+    addCoinRow(world, startX + g1 + gap + 80, 430, 3);
+
+    addEnemy(world, 'sprout', startX + 180, 442, startX + 60, startX + 340, 1.2);
+    if (tier >= 1) {
+      addEnemy(world, 'hopper', startX + g1 + gap + 220, 440, startX + g1 + gap + 80, startX + g1 + gap + 380, 1.5);
     }
+    spawnSafeRandomPowerUp(world, startX, startX + g1 + gap + g2, 'speed');
 
-    addCoinRow(world, startX + 80, 430, 3);
-    addCoinArc(world, startX + 180, 330, 5, 170, 45);
-    addCoinRow(world, startX + 380, 250, 4);
+    world.nextGenX = startX + g1 + gap + g2;
+  } else if (pattern === 2) {
+    // Ceremonial Springboard to High Temple Terrace
+    const len = 760;
+    addGround(world, startX, len, 470, 180, templeBiome);
+    addPlatform(world, startX + 240, 345, 120, 22, false, 0, templeBiome);
+    addPlatform(world, startX + 430, 255, 130, 22, false, 0, templeBiome);
 
-    addEnemy(world, 'crawler', startX + 260, 442, startX + 80, startX + 680, 1.3);
-    spawnSafeRandomPowerUp(world, startX, startX + len, 'shield');
+    world.springs.push({ x: startX + 170, y: 454, width: 34, height: 16, power: -15.2 });
+    addCoinArc(world, startX + 170, 420, 6, 210, 92);
+    addCoinRow(world, startX + 450, 205, 4);
+
+    addEnemy(world, 'crawler', startX + 460, 442, startX + 320, startX + 660, 1.4);
+    spawnSafeRandomPowerUp(world, startX, startX + len, 'jump');
+
     world.nextGenX = startX + len;
   } else {
-    // ----------------------------------------------------
-    // CAVE -> MEADOW TRANSITION
-    // Progressive travel: Fracturing Cavern -> Visible Cavern Exit -> Meadow Foothills -> Full Sunlit Meadow
-    // ----------------------------------------------------
-    if (f < 0.30) {
-      addGround(world, startX, len, 470, 180, 'cave');
-      addPlatform(world, startX + 170, 370, 120, 22, false, 0, 'cave');
-      addPlatform(world, startX + 380, 300, 125, 22, false, 0, 'meadow');
-      addPlatform(world, startX + 580, 370, 115, 22, false, 0, 'meadow');
-    } else if (f < 0.65) {
-      const splitX = Math.floor(len * (1 - (f - 0.3) / 0.35));
-      const sX = Math.max(80, Math.min(len - 80, splitX));
-      addGround(world, startX, sX, 470, 180, 'cave');
-      addGround(world, startX + sX, len - sX, 470, 180, 'meadow');
+    // Oscillating Ancient Limestone Slab & Runic Gateway
+    const g1 = 360;
+    const gap = Math.min(235, 175 + tier * 16);
+    const g2 = 420;
+    addGround(world, startX, g1, 470, 180, templeBiome);
 
-      addPlatform(world, startX + 170, 370, 120, 22, false, 0, 'meadow');
-      addPlatform(world, startX + 380, 300, 125, 22, false, 0, 'meadow');
-      addPlatform(world, startX + 580, 370, 115, 22, false, 0, 'meadow');
+    // Moving ancient slab
+    addPlatform(world, startX + g1 + 25, 350, 95, 22, true, 45, templeBiome);
+
+    addGround(world, startX + g1 + gap, g2, 470, 180, templeBiome);
+    addPlatform(world, startX + g1 + gap + 150, 315, 120, 22, false, 0, templeBiome);
+
+    addCoinArc(world, startX + g1 - 20, 420, 5, gap + 40, 52);
+    addCoinRow(world, startX + g1 + gap + 80, 430, 4);
+
+    if (tier >= 2) {
+      addEnemy(world, 'starstrider', startX + g1 + gap + 220, 428, startX + g1 + gap + 80, startX + g1 + gap + 380, 1.6);
     } else {
-      addGround(world, startX, len, 470, 180, 'meadow');
-      addPlatform(world, startX + 170, 370, 125, 22, false, 0, 'meadow');
-      addPlatform(world, startX + 380, 300, 130, 22, false, 0, 'meadow');
-      addPlatform(world, startX + 580, 360, 120, 22, false, 0, 'meadow');
+      addEnemy(world, 'sprout', startX + 180, 442, startX + 60, startX + 320, 1.2);
     }
+    spawnSafeRandomPowerUp(world, startX, startX + g1 + gap + g2, 'shield');
 
-    addCoinRow(world, startX + 80, 430, 3);
-    addCoinArc(world, startX + 180, 330, 5, 170, 45);
-    addCoinRow(world, startX + 390, 250, 3);
+    world.nextGenX = startX + g1 + gap + g2;
+  }
+}
 
-    addEnemy(world, 'sprout', startX + 280, 442, startX + 80, startX + 680, 1.2);
-    spawnSafeRandomPowerUp(world, startX, startX + len, 'magnet');
+// ----------------------------------------------------
+// VOLCANIC AREA LOCATION GENERATOR
+// Hardened basalt ridges, glowing magma cracks, suspended crags, steam springs
+// ----------------------------------------------------
+function generateVolcanoChunk(world: WorldData, startX: number, tier: number, pattern: number) {
+  const volcanoBiome: BiomeType = 'volcano';
+
+  if (pattern === 0) {
+    // Continuous hardened basalt ridge with elevated volcanic rock slabs
+    const len = 780 + tier * 40;
+    addGround(world, startX, len, 470, 180, volcanoBiome);
+    addPlatform(world, startX + 170, 370, 120, 22, false, 0, volcanoBiome);
+    addPlatform(world, startX + 370, 295, 125, 22, false, 0, volcanoBiome);
+    addPlatform(world, startX + 570, 365, 115, 22, false, 0, volcanoBiome);
+
+    addCoinRow(world, startX + 70, 430, 3);
+    addCoinArc(world, startX + 180, 320, 5, 170, 45);
+    addCoinRow(world, startX + 380, 245, 4);
+
+    addEnemy(world, 'crawler', startX + 280, 442, startX + 80, startX + 680, 1.4);
+    if (tier >= 2) {
+      addEnemy(world, 'chonker', startX + 480, 434, startX + 350, startX + 700, 1.2);
+    }
+    spawnSafeRandomPowerUp(world, startX, startX + len, 'shield');
+
     world.nextGenX = startX + len;
+  } else if (pattern === 1) {
+    // Caldera Magma Chasm (fair reachable gap 165-225px)
+    const g1 = 380;
+    const gap = Math.min(230, 165 + tier * 18);
+    const g2 = 420;
+    addGround(world, startX, g1, 470, 180, volcanoBiome);
+    addPlatform(world, startX + 170, 360, 110, 22, false, 0, volcanoBiome);
+
+    // Suspended basalt crag platform over magma trench
+    addPlatform(world, startX + g1 + 20, 325, gap - 40 > 70 ? gap - 40 : 80, 22, false, 0, volcanoBiome);
+
+    addGround(world, startX + g1 + gap, g2, 470, 180, volcanoBiome);
+    addPlatform(world, startX + g1 + gap + 160, 370, 120, 22, false, 0, volcanoBiome);
+
+    addCoinArc(world, startX + g1 - 20, 420, 5, gap + 40, 52);
+    addCoinRow(world, startX + g1 + gap + 80, 430, 3);
+
+    addEnemy(world, 'crawler', startX + 160, 442, startX + 50, startX + 340, 1.3);
+    addEnemy(world, 'hopper', startX + g1 + gap + 220, 440, startX + g1 + gap + 80, startX + g1 + gap + 380, 1.6);
+    spawnSafeRandomPowerUp(world, startX, startX + g1 + gap + g2, 'speed');
+
+    world.nextGenX = startX + g1 + gap + g2;
+  } else if (pattern === 2) {
+    // Thermal Geyser Springboard Launch onto High Basalt Pinnacle
+    const len = 760;
+    addGround(world, startX, len, 470, 180, volcanoBiome);
+    addPlatform(world, startX + 250, 340, 120, 22, false, 0, volcanoBiome);
+    addPlatform(world, startX + 440, 250, 130, 22, false, 0, volcanoBiome);
+
+    world.springs.push({ x: startX + 170, y: 454, width: 34, height: 16, power: -15.4 });
+    addCoinArc(world, startX + 170, 420, 6, 220, 95);
+    addCoinRow(world, startX + 450, 200, 4);
+
+    addEnemy(world, 'crawler', startX + 480, 442, startX + 320, startX + 680, 1.4);
+    spawnSafeRandomPowerUp(world, startX, startX + len, 'jump');
+
+    world.nextGenX = startX + len;
+  } else {
+    // Moving Basalt Magma Island across lava cleft
+    const g1 = 360;
+    const gap = Math.min(235, 175 + tier * 16);
+    const g2 = 420;
+    addGround(world, startX, g1, 470, 180, volcanoBiome);
+
+    // Floating basalt magma platform
+    addPlatform(world, startX + g1 + 25, 345, 95, 22, true, 42, volcanoBiome);
+
+    addGround(world, startX + g1 + gap, g2, 470, 180, volcanoBiome);
+    addPlatform(world, startX + g1 + gap + 150, 310, 120, 22, false, 0, volcanoBiome);
+
+    addCoinArc(world, startX + g1 - 20, 420, 5, gap + 40, 54);
+    addCoinRow(world, startX + g1 + gap + 80, 430, 4);
+
+    if (tier >= 2) {
+      addEnemy(world, 'starstrider', startX + g1 + gap + 220, 428, startX + g1 + gap + 80, startX + g1 + gap + 380, 1.6);
+    } else {
+      addEnemy(world, 'hopper', startX + 180, 440, startX + 60, startX + 320, 1.5);
+    }
+    spawnSafeRandomPowerUp(world, startX, startX + g1 + gap + g2, 'life');
+
+    world.nextGenX = startX + g1 + gap + g2;
   }
 }
 
